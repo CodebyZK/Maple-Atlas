@@ -9,6 +9,7 @@ Current milestone: `v0.1.0`
 
 - Search by recipient, project, program, department, city, or province
 - Filter records by province and department
+- Explore funding totals through an interactive Canadian region map
 - Compare funding totals across departments
 - Review individual funding agreements and their source data
 - Run entirely as a static website with no backend or authentication

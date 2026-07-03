@@ -71,6 +71,11 @@ describe("App", () => {
     );
     expect(screen.queryByText("Community Group")).not.toBeInTheDocument();
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Ontario: $0.0, 0 agreements"
+      })
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     fireEvent.change(screen.getByLabelText("Province or territory"), {
@@ -85,6 +90,11 @@ describe("App", () => {
     });
     expect(screen.queryByText("Community Group")).not.toBeInTheDocument();
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Ontario: $0.0, 0 agreements"
+      })
+    ).toBeInTheDocument();
   });
 
   it("opens the detail dialog and dismisses it with Escape", async () => {
@@ -101,6 +111,21 @@ describe("App", () => {
 
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("filters records when a map region is selected", async () => {
+    render(<App />);
+    await screen.findByText("Community Group");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Yukon: $75.0K, 1 agreements"
+      })
+    );
+
+    expect(screen.queryByText("Community Group")).not.toBeInTheDocument();
+    expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
+    expect(screen.getByLabelText("Province or territory")).toHaveValue("YT");
   });
 
   it("shows a useful error when loading fails", async () => {

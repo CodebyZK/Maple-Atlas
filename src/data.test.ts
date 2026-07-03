@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { filterGrants, fundingByDepartment, uniqueValues } from "./data";
+import {
+  CANADIAN_REGIONS,
+  filterGrants,
+  fundingByDepartment,
+  fundingByRegion,
+  uniqueValues
+} from "./data";
 import type { Grant } from "./types";
 
 const grant = (overrides: Partial<Grant>): Grant => ({
@@ -45,5 +51,17 @@ describe("aggregations", () => {
 
   it("returns sorted unique values", () => {
     expect(uniqueValues(grants, "province")).toEqual(["ON", "YT"]);
+  });
+
+  it("returns every region and separates records without a location", () => {
+    const totals = fundingByRegion([
+      ...grants,
+      grant({ record_id: "4", province: null, agreement_value: 25 })
+    ]);
+    const ontario = totals.regions.find((region) => region.code === "ON");
+
+    expect(totals.regions).toHaveLength(CANADIAN_REGIONS.length);
+    expect(ontario).toMatchObject({ value: 150, count: 2 });
+    expect(totals.unknown).toMatchObject({ value: 25, count: 1 });
   });
 });

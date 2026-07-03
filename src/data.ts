@@ -1,4 +1,20 @@
-import type { FundingTotal, Grant, GrantFilters } from "./types";
+import type { FundingTotal, Grant, GrantFilters, RegionTotal } from "./types";
+
+export const CANADIAN_REGIONS = [
+  { code: "YT", name: "Yukon" },
+  { code: "NT", name: "Northwest Territories" },
+  { code: "NU", name: "Nunavut" },
+  { code: "BC", name: "British Columbia" },
+  { code: "AB", name: "Alberta" },
+  { code: "SK", name: "Saskatchewan" },
+  { code: "MB", name: "Manitoba" },
+  { code: "ON", name: "Ontario" },
+  { code: "QC", name: "Quebec" },
+  { code: "NB", name: "New Brunswick" },
+  { code: "PE", name: "Prince Edward Island" },
+  { code: "NS", name: "Nova Scotia" },
+  { code: "NL", name: "Newfoundland and Labrador" }
+] as const;
 
 const searchableFields: (keyof Grant)[] = [
   "recipient_name",
@@ -53,6 +69,28 @@ export function fundingByDepartment(grants: Grant[], limit = 6): FundingTotal[] 
   return [...totals.values()]
     .sort((left, right) => right.value - left.value)
     .slice(0, limit);
+}
+
+export function fundingByRegion(grants: Grant[]): {
+  regions: RegionTotal[];
+  unknown: FundingTotal;
+} {
+  const totals = new Map<string, RegionTotal>(
+    CANADIAN_REGIONS.map((region) => [
+      region.code,
+      { ...region, value: 0, count: 0 }
+    ])
+  );
+  const unknown: FundingTotal = { name: "Unknown location", value: 0, count: 0 };
+
+  for (const grant of grants) {
+    const region = grant.province ? totals.get(grant.province) : undefined;
+    const total = region ?? unknown;
+    total.value += grant.agreement_value;
+    total.count += 1;
+  }
+
+  return { regions: [...totals.values()], unknown };
 }
 
 export function uniqueValues(

@@ -64,6 +64,34 @@ select { width: 100%; min-width: 0; height: 44px; padding: 0 38px 0 12px; color:
 .metrics span { color: var(--muted); font-size: 13px; }
 .metrics strong { font: 700 clamp(25px, 3vw, 36px) "Libre Franklin", sans-serif; letter-spacing: -.035em; }
 
+.map-panel { margin-top: 24px; overflow: hidden; }
+.map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 28px; align-items: stretch; }
+.canada-map { width: 100%; height: auto; min-height: 300px; }
+.map-region { cursor: pointer; outline: none; }
+.map-region path { stroke: var(--paper); stroke-width: 5px; transition: filter .15s, stroke .15s; }
+.map-region text { fill: white; pointer-events: none; font: 700 18px "Libre Franklin", sans-serif; }
+.map-region .map-value { font: 600 11px "DM Sans", sans-serif; }
+.map-region.level-0 path { fill: #dfe3de; }
+.map-region.level-0 text { fill: #53625b; }
+.map-region.level-1 path, .legend .level-1 { fill: #c5d9d0; background: #c5d9d0; }
+.map-region.level-2 path, .legend .level-2 { fill: #8db7a5; background: #8db7a5; }
+.map-region.level-3 path, .legend .level-3 { fill: #518d77; background: #518d77; }
+.map-region.level-4 path, .legend .level-4 { fill: #28634f; background: #28634f; }
+.map-region.level-5 path, .legend .level-5 { fill: #123f33; background: #123f33; }
+.map-region:hover path, .map-region:focus path { filter: brightness(1.12); stroke: #f1b64a; }
+.map-region.selected path { stroke: var(--maple); stroke-width: 8px; }
+.map-summary { min-height: 260px; padding: 28px; display: grid; align-content: center; color: white; background: var(--forest); }
+.map-summary > span { color: #a9c4b9; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 700; }
+.map-summary h3 { margin: 8px 0 22px; font: 700 23px/1.2 "Libre Franklin", sans-serif; }
+.map-summary strong { font: 700 27px "Libre Franklin", sans-serif; }
+.map-summary p { margin: 8px 0 0; color: #d4e0db; font-size: 13px; line-height: 1.6; }
+.map-summary button { margin-top: 20px; padding: 0; justify-self: start; color: white; background: transparent; border: 0; border-bottom: 1px solid #9fb7ad; cursor: pointer; }
+.map-footer { margin-top: 10px; padding-top: 18px; display: flex; justify-content: space-between; gap: 20px; align-items: center; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.map-footer p { margin: 0; }
+.legend { display: flex; gap: 5px; align-items: center; }
+.legend i { width: 25px; height: 8px; display: block; }
+.legend span { margin-inline: 4px; }
+
 .content-grid { display: grid; grid-template-columns: minmax(300px, .8fr) minmax(420px, 1.2fr); gap: 24px; margin-top: 24px; align-items: start; }
 .panel { padding: 28px; background: var(--paper); border: 1px solid var(--line); }
 .panel-heading { display: flex; justify-content: space-between; gap: 16px; align-items: end; margin-bottom: 28px; }
@@ -110,9 +138,22 @@ dd { margin: 6px 0 0; font-size: 13px; line-height: 1.5; }
   .source-link { display: none; }
   .hero { padding-top: 50px; }
   .content-grid { grid-template-columns: 1fr; }
+  .map-layout { grid-template-columns: 1fr; }
+  .canada-map { min-height: 0; }
+  .map-summary { min-height: 190px; }
+  .map-footer { align-items: flex-start; flex-direction: column; }
   .metrics { grid-template-columns: 1fr; }
   .metrics article { min-height: 92px; border-right: 0; border-bottom: 1px solid var(--line); }
   .filters { align-items: stretch; flex-direction: column; }
   .filters label { min-width: 0; }
   footer, dl { grid-template-columns: 1fr; flex-direction: column; }
+}
+
+@media (max-width: 520px) {
+  .panel, .map-panel { padding: 20px; }
+  .map-layout { gap: 10px; }
+  .canada-map { margin-inline: -8px; width: calc(100% + 16px); }
+  .map-region text { font-size: 20px; }
+  .map-region .map-value { display: none; }
+  .legend i { width: 18px; }
 }
