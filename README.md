@@ -38,7 +38,14 @@ npm run build
 ## Updating the data
 
 Forge is the source of truth for the shared grant schema. After building Forge,
-copy its sample into Atlas:
+copy its sample into Atlas. This command expects both repositories to be checked
+out as sibling directories:
+
+```text
+maple/
+├── atlas/
+└── forge/
+```
 
 ```powershell
 Copy-Item ..\forge\data\samples\grants.sample.json public\data\grants.sample.json

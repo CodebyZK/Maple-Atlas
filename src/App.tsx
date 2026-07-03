@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { filterGrants, fundingByDepartment, loadGrants, uniqueValues } from "./data";
 import type { Grant, GrantFilters } from "./types";
 
@@ -28,16 +28,46 @@ export default function App() {
   });
   const [selected, setSelected] = useState<Grant | null>(null);
   const [error, setError] = useState("");
+  const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    loadGrants().then(setGrants).catch((reason: Error) => setError(reason.message));
+    loadGrants().then(setGrants).catch((reason: unknown) => {
+      const message =
+        reason instanceof Error
+          ? reason.message
+          : typeof reason === "string"
+            ? reason
+            : "Could not load grant data";
+      setError(message);
+    });
   }, []);
+
+  useEffect(() => {
+    if (selected) {
+      dialogRef.current?.focus();
+    }
+  }, [selected]);
 
   const results = useMemo(() => filterGrants(grants, filters), [grants, filters]);
   const departments = useMemo(() => fundingByDepartment(results), [results]);
-  const totalFunding = results.reduce((sum, grant) => sum + grant.agreement_value, 0);
-  const recipientCount = new Set(results.map((grant) => grant.recipient_name)).size;
-  const maxDepartmentValue = departments[0]?.value ?? 1;
+  const totalFunding = useMemo(
+    () => results.reduce((sum, grant) => sum + grant.agreement_value, 0),
+    [results]
+  );
+  const recipientCount = useMemo(
+    () => new Set(results.map((grant) => grant.recipient_name)).size,
+    [results]
+  );
+  const provinces = useMemo(() => uniqueValues(grants, "province"), [grants]);
+  const departmentOptions = useMemo(
+    () => uniqueValues(grants, "department"),
+    [grants]
+  );
+  const leadingDepartmentValue = departments[0]?.value;
+  const maxDepartmentValue =
+    leadingDepartmentValue && leadingDepartmentValue > 0
+      ? leadingDepartmentValue
+      : 1;
 
   function updateFilter(field: keyof GrantFilters, value: string) {
     setFilters((current) => ({ ...current, [field]: value }));
@@ -82,14 +112,14 @@ export default function App() {
                 Province or territory
                 <select value={filters.province} onChange={(event) => updateFilter("province", event.target.value)}>
                   <option value="">All regions</option>
-                  {uniqueValues(grants, "province").map((province) => <option key={province}>{province}</option>)}
+                  {provinces.map((province) => <option key={province}>{province}</option>)}
                 </select>
               </label>
               <label>
                 Department
                 <select value={filters.department} onChange={(event) => updateFilter("department", event.target.value)}>
                   <option value="">All departments</option>
-                  {uniqueValues(grants, "department").map((department) => <option key={department}>{department}</option>)}
+                  {departmentOptions.map((department) => <option key={department}>{department}</option>)}
                 </select>
               </label>
               {(filters.query || filters.province || filters.department) && (
@@ -115,7 +145,15 @@ export default function App() {
                   {departments.map((department) => (
                     <div className="bar-row" key={department.name}>
                       <div><span>{department.name}</span><strong>{currency.format(department.value)}</strong></div>
-                      <div className="bar-track"><span style={{ width: `${(department.value / maxDepartmentValue) * 100}%` }} /></div>
+                      <div className="bar-track">
+                        <span
+                          style={{
+                            width: `${Number.isFinite(department.value) && department.value > 0
+                              ? (department.value / maxDepartmentValue) * 100
+                              : 0}%`
+                          }}
+                        />
+                      </div>
                     </div>
                   ))}
                   {!departments.length && <p>No departments match these filters.</p>}
@@ -151,7 +189,20 @@ export default function App() {
 
       {selected && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelected(null)}>
-          <article className="modal" role="dialog" aria-modal="true" aria-labelledby="grant-title" onMouseDown={(event) => event.stopPropagation()}>
+          <article
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="grant-title"
+            ref={dialogRef}
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setSelected(null);
+              }
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <button className="close" aria-label="Close details" onClick={() => setSelected(null)}>×</button>
             <p className="eyebrow">{selected.department}</p>
             <h2 id="grant-title">{selected.recipient_name}</h2>
