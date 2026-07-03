@@ -1,0 +1,24 @@
+image: node:20
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - npm ci
+
+test:
+  script:
+    - npm test
+    - npm run build
+
+pages:
+  script:
+    - npm run build
+    - mv dist public-site
+  artifacts:
+    paths:
+      - public-site
+  publish: public-site
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
