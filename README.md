@@ -16,6 +16,8 @@ Current milestone: `v0.1.0`
 
 Atlas currently uses Forge's deterministic 500-record development sample.
 Totals shown in the dashboard describe that sample, not all federal funding.
+When `VITE_DATA_API_URL` is configured, Atlas queries a paginated data service
+instead and displays the complete dataset lineage returned by that service.
 
 ## Setup
 
@@ -35,6 +37,34 @@ npm run dev
 npm test
 npm run build
 ```
+
+## Full dataset API
+
+Set `VITE_DATA_API_URL` at build time to move filtering, aggregation, and
+pagination out of the browser:
+
+```powershell
+$env:VITE_DATA_API_URL = "https://data.example.ca/v1/"
+npm run dev
+```
+
+Atlas sends `GET {VITE_DATA_API_URL}/grants` with these query parameters:
+
+- `query`
+- `province`
+- `department`
+- `page`
+- `page_size`
+
+The response must match `GrantQueryResult` in `src/types.ts`. It contains the
+bounded `records` page, page metadata, global matching totals, department
+totals, province and territory totals, filter options, and Forge dataset
+lineage. Region totals must apply search and department filters while ignoring
+the selected province so users can move directly between map regions.
+
+Without `VITE_DATA_API_URL`, Atlas uses the committed 500-record sample through
+the same client interface. This fallback is intended for tests and local
+development only.
 
 ## Updating the data
 
@@ -58,9 +88,10 @@ Do not hand-edit the copied sample.
 
 ```text
 public/data/         versioned Forge sample
-src/data.ts          data loading and aggregation
-src/types.ts         shared Forge record shape
-src/App.tsx          dashboard and record details
+src/data.ts          fallback sample loading and aggregation
+src/dataClient.ts    paginated HTTP client and local fallback adapter
+src/types.ts         shared Forge and API response shapes
+src/App.tsx          asynchronous dashboard and record details
 src/styles.css       responsive visual design
 ```
 

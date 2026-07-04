@@ -117,6 +117,10 @@ select { width: 100%; min-width: 0; height: 44px; padding: 0 38px 0 12px; color:
 .record small { max-width: 76%; color: #7b847f; }
 .record-value { position: absolute; right: 4px; top: 20px; font-weight: 700; color: var(--forest); }
 .result-limit { padding: 16px 4px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.pagination { padding-top: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 13px; }
+.pagination button { padding: 8px 12px; color: var(--forest); background: white; border: 1px solid var(--line); cursor: pointer; }
+.pagination button:disabled { opacity: .45; cursor: default; }
+.loading { margin: 36px auto; max-width: 1180px; color: var(--muted); }
 
 footer { padding: 28px clamp(24px, 5vw, 72px); display: flex; justify-content: space-between; gap: 20px; color: #d4e0db; background: #102f28; font-size: 12px; }
 .error { margin: 40px; padding: 20px; color: #8e281d; background: #fce5df; }
