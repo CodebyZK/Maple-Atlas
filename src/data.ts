@@ -74,6 +74,8 @@ export function fundingByDepartment(grants: Grant[], limit = 6): FundingTotal[] 
 export function fundingByRegion(grants: Grant[]): {
   regions: RegionTotal[];
   unknown: FundingTotal;
+  missing: FundingTotal;
+  unrecognized: FundingTotal;
 } {
   const totals = new Map<string, RegionTotal>(
     CANADIAN_REGIONS.map((region) => [
@@ -82,15 +84,36 @@ export function fundingByRegion(grants: Grant[]): {
     ])
   );
   const unknown: FundingTotal = { name: "Unknown location", value: 0, count: 0 };
+  const missing: FundingTotal = { name: "Missing location", value: 0, count: 0 };
+  const unrecognized: FundingTotal = {
+    name: "Unrecognized location",
+    value: 0,
+    count: 0
+  };
 
   for (const grant of grants) {
-    const region = grant.province ? totals.get(grant.province) : undefined;
-    const total = region ?? unknown;
-    total.value += grant.agreement_value;
-    total.count += 1;
+    if (!grant.province) {
+      missing.value += grant.agreement_value;
+      missing.count += 1;
+      unknown.value += grant.agreement_value;
+      unknown.count += 1;
+      continue;
+    }
+
+    const region = totals.get(grant.province);
+    if (!region) {
+      unrecognized.value += grant.agreement_value;
+      unrecognized.count += 1;
+      unknown.value += grant.agreement_value;
+      unknown.count += 1;
+      continue;
+    }
+
+    region.value += grant.agreement_value;
+    region.count += 1;
   }
 
-  return { regions: [...totals.values()], unknown };
+  return { regions: [...totals.values()], unknown, missing, unrecognized };
 }
 
 export function uniqueValues(

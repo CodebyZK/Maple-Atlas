@@ -53,15 +53,20 @@ describe("aggregations", () => {
     expect(uniqueValues(grants, "province")).toEqual(["ON", "YT"]);
   });
 
-  it("returns every region and separates records without a location", () => {
+  it("returns every region and distinguishes missing and unrecognized locations", () => {
     const totals = fundingByRegion([
       ...grants,
-      grant({ record_id: "4", province: null, agreement_value: 25 })
+      grant({ record_id: "4", province: null, agreement_value: 25 }),
+      grant({ record_id: "5", province: "XX", agreement_value: 75 })
     ]);
     const ontario = totals.regions.find((region) => region.code === "ON");
 
     expect(totals.regions).toHaveLength(CANADIAN_REGIONS.length);
     expect(ontario).toMatchObject({ value: 150, count: 2 });
-    expect(totals.unknown).toMatchObject({ value: 25, count: 1 });
+    // Missing and invalid codes both contribute to the displayed unknown total,
+    // while the breakdown keeps data-quality issues visible.
+    expect(totals.unknown).toMatchObject({ value: 100, count: 2 });
+    expect(totals.missing).toMatchObject({ value: 25, count: 1 });
+    expect(totals.unrecognized).toMatchObject({ value: 75, count: 1 });
   });
 });
