@@ -71,7 +71,7 @@ select { width: 100%; min-width: 0; height: 44px; padding: 0 38px 0 12px; color:
 .map-region path { stroke: var(--paper); stroke-width: 5px; transition: filter .15s, stroke .15s; }
 .map-region text { fill: white; pointer-events: none; font: 700 18px "Libre Franklin", sans-serif; }
 .map-region .map-value { font: 600 11px "DM Sans", sans-serif; }
-.map-region.level-0 path { fill: #dfe3de; }
+.map-region.level-0 path, .legend .level-0 { fill: #dfe3de; background: #dfe3de; }
 .map-region.level-0 text { fill: #53625b; }
 .map-region.level-1 path, .legend .level-1 { fill: #c5d9d0; background: #c5d9d0; }
 .map-region.level-2 path, .legend .level-2 { fill: #8db7a5; background: #8db7a5; }

@@ -130,6 +130,8 @@ export default function CanadaMap({
 
       <div className="map-footer">
         <div className="legend" aria-label="Funding value legend">
+          <span>No data</span>
+          <i className="level-0" />
           <span>Lower</span>
           {[1, 2, 3, 4, 5].map((level) => (
             <i className={`level-${level}`} key={level} />
