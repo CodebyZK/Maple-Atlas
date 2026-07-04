@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { DEFAULT_PAGE_SIZE } from "./dataClient";
 
 const sample = [
   {
@@ -69,7 +70,9 @@ describe("App", () => {
       screen.getByPlaceholderText("Search recipients, projects, programs, or places"),
       { target: { value: "research" } }
     );
-    expect(screen.queryByText("Community Group")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("Community Group")).not.toBeInTheDocument()
+    );
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
@@ -81,14 +84,18 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Province or territory"), {
       target: { value: "ON" }
     });
+    await waitFor(() =>
+      expect(screen.queryByText("Northern Research Lab")).not.toBeInTheDocument()
+    );
     expect(screen.getByText("Community Group")).toBeInTheDocument();
-    expect(screen.queryByText("Northern Research Lab")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     fireEvent.change(screen.getByLabelText("Department"), {
       target: { value: "Department B" }
     });
-    expect(screen.queryByText("Community Group")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("Community Group")).not.toBeInTheDocument()
+    );
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
@@ -122,18 +129,47 @@ describe("App", () => {
     });
     fireEvent.click(yukon);
 
-    expect(screen.queryByText("Community Group")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("Community Group")).not.toBeInTheDocument()
+    );
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
     expect(screen.getByLabelText("Province or territory")).toHaveValue("YT");
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
-    expect(screen.getByText("Community Group")).toBeInTheDocument();
+    expect(await screen.findByText("Community Group")).toBeInTheDocument();
     expect(screen.getByLabelText("Province or territory")).toHaveValue("");
 
     fireEvent.keyDown(yukon, { key: "Enter" });
-    expect(screen.queryByText("Community Group")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("Community Group")).not.toBeInTheDocument()
+    );
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
     expect(screen.getByLabelText("Province or territory")).toHaveValue("YT");
+  });
+
+  it("loads bounded result pages", async () => {
+    const secondPageRecipient = `Recipient ${DEFAULT_PAGE_SIZE + 1}`;
+    const paginatedSample = Array.from(
+      { length: DEFAULT_PAGE_SIZE + 1 },
+      (_, index) => ({
+      ...sample[0],
+      record_id: `grant-${index + 1}`,
+      recipient_name: `Recipient ${index + 1}`
+      })
+    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => paginatedSample
+    }));
+
+    render(<App />);
+    await screen.findByText("Recipient 1");
+
+    expect(screen.queryByText(secondPageRecipient)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByText(secondPageRecipient)).toBeInTheDocument();
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
   });
 
   it("shows a useful error when loading fails", async () => {

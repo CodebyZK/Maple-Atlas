@@ -28,6 +28,7 @@ const tilePositions: Record<string, { x: number; y: number }> = {
 interface CanadaMapProps {
   regions: RegionTotal[];
   unknown: FundingTotal;
+  isSample: boolean;
   selectedRegion: string;
   onSelect: (code: string) => void;
 }
@@ -45,6 +46,7 @@ function colorLevel(value: number, maximum: number): number {
 export default function CanadaMap({
   regions,
   unknown,
+  isSample,
   selectedRegion,
   onSelect
 }: CanadaMapProps) {
@@ -115,14 +117,19 @@ export default function CanadaMap({
               <strong>{currency.format(active.value)}</strong>
               <p>{active.count.toLocaleString("en-CA")} published agreements</p>
               {selectedRegion === active.code && (
-                <button onClick={() => onSelect("")}>Show all regions</button>
+                <button type="button" onClick={() => onSelect("")}>
+                  Show all regions
+                </button>
               )}
             </>
           ) : (
             <>
               <span>Map</span>
               <h3>Explore the regions</h3>
-              <p>Hover, focus, or select a province or territory for its sample totals.</p>
+              <p>
+                Hover, focus, or select a province or territory for its{" "}
+                {isSample ? "sample" : "published"} totals.
+              </p>
             </>
           )}
         </aside>

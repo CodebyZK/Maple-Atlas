@@ -29,3 +29,31 @@ export interface FundingTotal {
 export interface RegionTotal extends FundingTotal {
   code: string;
 }
+
+export interface GrantQuery extends GrantFilters {
+  page: number;
+  pageSize: number;
+}
+
+export interface DatasetInfo {
+  version: string;
+  retrievedAt: string;
+  recordCount: number;
+  isSample: boolean;
+}
+
+export interface GrantQueryResult {
+  records: Grant[];
+  page: number;
+  pageSize: number;
+  totalRecords: number;
+  totalPages: number;
+  totalFunding: number;
+  recipientCount: number;
+  departments: FundingTotal[];
+  regions: RegionTotal[];
+  unknownRegion: FundingTotal;
+  provinceOptions: string[];
+  departmentOptions: string[];
+  dataset: DatasetInfo;
+}

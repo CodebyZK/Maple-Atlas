@@ -1,0 +1,194 @@
+import {
+  filterGrants,
+  fundingByDepartment,
+  fundingByRegion,
+  loadGrants,
+  uniqueValues
+} from "./data";
+import type {
+  DatasetInfo,
+  Grant,
+  GrantQuery,
+  GrantQueryResult
+} from "./types";
+
+export const DEFAULT_PAGE_SIZE = 25;
+
+export interface DataClient {
+  queryGrants(query: GrantQuery, signal?: AbortSignal): Promise<GrantQueryResult>;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNullableString(value: unknown): boolean {
+  return typeof value === "string" || value === null;
+}
+
+function isFundingTotal(value: unknown): boolean {
+  return isObject(value)
+    && typeof value.name === "string"
+    && typeof value.value === "number"
+    && typeof value.count === "number";
+}
+
+function isGrant(value: unknown): boolean {
+  return isObject(value)
+    && typeof value.record_id === "string"
+    && typeof value.recipient_name === "string"
+    && typeof value.agreement_title === "string"
+    && typeof value.agreement_value === "number"
+    && isNullableString(value.agreement_start_date)
+    && isNullableString(value.agreement_end_date)
+    && isNullableString(value.province)
+    && isNullableString(value.city)
+    && typeof value.department === "string"
+    && isNullableString(value.program_name)
+    && typeof value.description === "string"
+    && typeof value.source_url === "string"
+    && typeof value.retrieved_at === "string";
+}
+
+function isGrantQueryResult(value: unknown): value is GrantQueryResult {
+  if (!isObject(value) || !isObject(value.dataset)) return false;
+
+  return Array.isArray(value.records)
+    && value.records.every(isGrant)
+    && typeof value.page === "number"
+    && typeof value.pageSize === "number"
+    && typeof value.totalRecords === "number"
+    && typeof value.totalPages === "number"
+    && typeof value.totalFunding === "number"
+    && typeof value.recipientCount === "number"
+    && Array.isArray(value.departments)
+    && value.departments.every(isFundingTotal)
+    && Array.isArray(value.regions)
+    && value.regions.every(
+      (region) => isFundingTotal(region)
+        && isObject(region)
+        && typeof region.code === "string"
+    )
+    && isFundingTotal(value.unknownRegion)
+    && Array.isArray(value.provinceOptions)
+    && value.provinceOptions.every((option) => typeof option === "string")
+    && Array.isArray(value.departmentOptions)
+    && value.departmentOptions.every((option) => typeof option === "string")
+    && typeof value.dataset.version === "string"
+    && typeof value.dataset.retrievedAt === "string"
+    && typeof value.dataset.recordCount === "number"
+    && typeof value.dataset.isSample === "boolean";
+}
+
+function datasetInfo(grants: Grant[]): DatasetInfo {
+  const retrievedAt = grants.reduce(
+    (latest, grant) => grant.retrieved_at > latest ? grant.retrieved_at : latest,
+    ""
+  );
+
+  return {
+    version: "development-sample",
+    retrievedAt,
+    recordCount: grants.length,
+    isSample: true
+  };
+}
+
+export class SampleDataClient implements DataClient {
+  private grantsPromise?: Promise<Grant[]>;
+
+  constructor(
+    private readonly load: () => Promise<Grant[]> = loadGrants
+  ) {}
+
+  private grants(): Promise<Grant[]> {
+    if (!this.grantsPromise) {
+      this.grantsPromise = this.load().catch((error: unknown) => {
+        this.grantsPromise = undefined;
+        throw error;
+      });
+    }
+    return this.grantsPromise;
+  }
+
+  async queryGrants(
+    query: GrantQuery,
+    signal?: AbortSignal
+  ): Promise<GrantQueryResult> {
+    const grants = await this.grants();
+    signal?.throwIfAborted();
+
+    const filtered = filterGrants(grants, query);
+    const mapRecords = filterGrants(grants, { ...query, province: "" });
+    const regionalFunding = fundingByRegion(mapRecords);
+    const totalPages = Math.max(1, Math.ceil(filtered.length / query.pageSize));
+    const page = Math.min(Math.max(1, query.page), totalPages);
+    const offset = (page - 1) * query.pageSize;
+
+    return {
+      records: filtered.slice(offset, offset + query.pageSize),
+      page,
+      pageSize: query.pageSize,
+      totalRecords: filtered.length,
+      totalPages,
+      totalFunding: filtered.reduce(
+        (sum, grant) => sum + grant.agreement_value,
+        0
+      ),
+      recipientCount: new Set(
+        filtered.map((grant) => grant.recipient_name)
+      ).size,
+      departments: fundingByDepartment(filtered),
+      regions: regionalFunding.regions,
+      unknownRegion: regionalFunding.unknown,
+      provinceOptions: uniqueValues(grants, "province"),
+      departmentOptions: uniqueValues(grants, "department"),
+      dataset: datasetInfo(grants)
+    };
+  }
+}
+
+export class HttpDataClient implements DataClient {
+  constructor(private readonly baseUrl: string) {}
+
+  async queryGrants(
+    query: GrantQuery,
+    signal?: AbortSignal
+  ): Promise<GrantQueryResult> {
+    const baseUrl = new URL(
+      `${this.baseUrl.replace(/\/+$/, "")}/`,
+      window.location.origin
+    );
+    const url = new URL("grants", baseUrl);
+    url.search = new URLSearchParams({
+      query: query.query,
+      province: query.province,
+      department: query.department,
+      page: String(query.page),
+      page_size: String(query.pageSize)
+    }).toString();
+
+    const timeoutSignal = AbortSignal.timeout(15_000);
+    const requestSignal = signal
+      ? AbortSignal.any([signal, timeoutSignal])
+      : timeoutSignal;
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: requestSignal
+    });
+    if (!response.ok) {
+      throw new Error(`Could not query grant data (${response.status})`);
+    }
+
+    const payload: unknown = await response.json();
+    if (!isGrantQueryResult(payload)) {
+      throw new Error("Grant data API returned an invalid response");
+    }
+    return payload;
+  }
+}
+
+export function createDataClient(): DataClient {
+  const apiUrl = import.meta.env.VITE_DATA_API_URL?.trim();
+  return apiUrl ? new HttpDataClient(apiUrl) : new SampleDataClient();
+}

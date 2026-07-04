@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import CanadaMap from "./CanadaMap";
-import {
-  filterGrants,
-  fundingByDepartment,
-  fundingByRegion,
-  loadGrants,
-  uniqueValues
-} from "./data";
-import type { Grant, GrantFilters } from "./types";
+import { createDataClient, DEFAULT_PAGE_SIZE } from "./dataClient";
+import type { Grant, GrantFilters, GrantQueryResult } from "./types";
 
 const currency = new Intl.NumberFormat("en-CA", {
   style: "currency",
@@ -27,18 +21,31 @@ function formatDate(value: string | null): string {
 }
 
 export default function App() {
-  const [grants, setGrants] = useState<Grant[]>([]);
+  const dataClient = useMemo(() => createDataClient(), []);
   const [filters, setFilters] = useState<GrantFilters>({
     query: "",
     province: "",
     department: ""
   });
+  const [page, setPage] = useState(1);
+  const [queryResult, setQueryResult] = useState<GrantQueryResult | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Grant | null>(null);
   const [error, setError] = useState("");
   const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    loadGrants().then(setGrants).catch((reason: unknown) => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+
+    dataClient.queryGrants(
+      { ...filters, page, pageSize: DEFAULT_PAGE_SIZE },
+      controller.signal
+    ).then((result) => {
+      if (!controller.signal.aborted) setQueryResult(result);
+    }).catch((reason: unknown) => {
+      if (controller.signal.aborted) return;
       const message =
         reason instanceof Error
           ? reason.message
@@ -46,8 +53,12 @@ export default function App() {
             ? reason
             : "Could not load grant data";
       setError(message);
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
     });
-  }, []);
+
+    return () => controller.abort();
+  }, [dataClient, filters, page]);
 
   useEffect(() => {
     if (selected) {
@@ -55,26 +66,8 @@ export default function App() {
     }
   }, [selected]);
 
-  const results = useMemo(() => filterGrants(grants, filters), [grants, filters]);
-  const mapResults = useMemo(
-    () => filterGrants(grants, { ...filters, province: "" }),
-    [grants, filters]
-  );
-  const regionalFunding = useMemo(() => fundingByRegion(mapResults), [mapResults]);
-  const departments = useMemo(() => fundingByDepartment(results), [results]);
-  const totalFunding = useMemo(
-    () => results.reduce((sum, grant) => sum + grant.agreement_value, 0),
-    [results]
-  );
-  const recipientCount = useMemo(
-    () => new Set(results.map((grant) => grant.recipient_name)).size,
-    [results]
-  );
-  const provinces = useMemo(() => uniqueValues(grants, "province"), [grants]);
-  const departmentOptions = useMemo(
-    () => uniqueValues(grants, "department"),
-    [grants]
-  );
+  const results = queryResult?.records ?? [];
+  const departments = queryResult?.departments ?? [];
   const leadingDepartmentValue = departments[0]?.value;
   const maxDepartmentValue =
     leadingDepartmentValue && leadingDepartmentValue > 0
@@ -83,6 +76,12 @@ export default function App() {
 
   function updateFilter(field: keyof GrantFilters, value: string) {
     setFilters((current) => ({ ...current, [field]: value }));
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setFilters({ query: "", province: "", department: "" });
+    setPage(1);
   }
 
   return (
@@ -103,7 +102,7 @@ export default function App() {
           <h1>See where federal grant funding goes.</h1>
           <p className="hero-copy">
             Search recipients, compare departments, and inspect published funding
-            agreements from the Maple Forge development sample.
+            agreements processed by Maple Forge.
           </p>
           <label className="search">
             <span aria-hidden="true">⌕</span>
@@ -114,42 +113,49 @@ export default function App() {
               placeholder="Search recipients, projects, programs, or places"
             />
           </label>
-          <p className="sample-note">Development preview · 500 deterministic records</p>
+          <p className="sample-note">
+            {queryResult
+              ? `${queryResult.dataset.isSample ? "Development fallback" : "Complete Forge dataset"} · ${queryResult.dataset.recordCount.toLocaleString("en-CA")} records · retrieved ${date.format(new Date(queryResult.dataset.retrievedAt))}`
+              : "Loading dataset information…"}
+          </p>
         </section>
 
-        {error ? <p className="error" role="alert">{error}</p> : (
-          <section className="dashboard" aria-busy={!grants.length}>
+        {error ? <p className="error" role="alert">{error}</p> : !queryResult ? (
+          <p className="loading" role="status">Loading grant data…</p>
+        ) : (
+          <section className="dashboard" aria-busy={loading}>
             <div className="filters">
               <label>
                 Province or territory
                 <select value={filters.province} onChange={(event) => updateFilter("province", event.target.value)}>
                   <option value="">All regions</option>
-                  {provinces.map((province) => <option key={province}>{province}</option>)}
+                  {queryResult.provinceOptions.map((province) => <option key={province}>{province}</option>)}
                 </select>
               </label>
               <label>
                 Department
                 <select value={filters.department} onChange={(event) => updateFilter("department", event.target.value)}>
                   <option value="">All departments</option>
-                  {departmentOptions.map((department) => <option key={department}>{department}</option>)}
+                  {queryResult.departmentOptions.map((department) => <option key={department}>{department}</option>)}
                 </select>
               </label>
               {(filters.query || filters.province || filters.department) && (
-                <button className="clear" onClick={() => setFilters({ query: "", province: "", department: "" })}>
+                <button type="button" className="clear" onClick={clearFilters}>
                   Clear filters
                 </button>
               )}
             </div>
 
             <div className="metrics">
-              <article><span>Published funding</span><strong>{currency.format(totalFunding)}</strong></article>
-              <article><span>Agreements</span><strong>{results.length.toLocaleString("en-CA")}</strong></article>
-              <article><span>Recipients</span><strong>{recipientCount.toLocaleString("en-CA")}</strong></article>
+              <article><span>Published funding</span><strong>{currency.format(queryResult.totalFunding)}</strong></article>
+              <article><span>Agreements</span><strong>{queryResult.totalRecords.toLocaleString("en-CA")}</strong></article>
+              <article><span>Recipients</span><strong>{queryResult.recipientCount.toLocaleString("en-CA")}</strong></article>
             </div>
 
             <CanadaMap
-              regions={regionalFunding.regions}
-              unknown={regionalFunding.unknown}
+              regions={queryResult.regions}
+              unknown={queryResult.unknownRegion}
+              isSample={queryResult.dataset.isSample}
               selectedRegion={filters.province}
               onSelect={(province) => updateFilter("province", province)}
             />
@@ -182,19 +188,41 @@ export default function App() {
               <section className="panel records-panel">
                 <div className="panel-heading">
                   <div><p className="eyebrow">Agreements</p><h2>Funding records</h2></div>
-                  <span>{results.length} results</span>
+                  <span>{queryResult.totalRecords.toLocaleString("en-CA")} results</span>
                 </div>
                 <div className="record-list">
-                  {results.slice(0, 50).map((grant) => (
-                    <button className="record" key={grant.record_id} onClick={() => setSelected(grant)}>
+                  {results.map((grant) => (
+                    <button type="button" className="record" key={grant.record_id} onClick={() => setSelected(grant)}>
                       <span className="record-value">{currency.format(grant.agreement_value)}</span>
                       <strong>{grant.recipient_name}</strong>
                       <span>{grant.agreement_title || grant.program_name || "Untitled agreement"}</span>
                       <small>{[grant.city, grant.province, grant.department].filter(Boolean).join(" · ")}</small>
                     </button>
                   ))}
-                  {results.length > 50 && <p className="result-limit">Showing the first 50 matching records. Refine the filters to narrow the list.</p>}
+                  {!results.length && <p>No funding records match these filters.</p>}
                 </div>
+                {queryResult.totalPages > 1 && (
+                  <nav className="pagination" aria-label="Funding record pages">
+                    <button
+                      type="button"
+                      disabled={queryResult.page === 1 || loading}
+                      onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    >
+                      Previous
+                    </button>
+                    <span>
+                      Page {queryResult.page.toLocaleString("en-CA")} of{" "}
+                      {queryResult.totalPages.toLocaleString("en-CA")}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={queryResult.page === queryResult.totalPages || loading}
+                      onClick={() => setPage((current) => current + 1)}
+                    >
+                      Next
+                    </button>
+                  </nav>
+                )}
               </section>
             </div>
           </section>
@@ -203,7 +231,13 @@ export default function App() {
 
       <footer>
         <span>MapleScope · Open public-funding data</span>
-        <span>Sample data is not a complete measure of federal spending.</span>
+        <span>
+          {!queryResult
+            ? "Dataset information is loading."
+            : queryResult.dataset.isSample
+              ? "Development sample totals are not a complete measure of federal spending."
+              : "Totals reflect the published Forge dataset version shown above."}
+        </span>
       </footer>
 
       {selected && (
@@ -222,7 +256,7 @@ export default function App() {
             }}
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <button className="close" aria-label="Close details" onClick={() => setSelected(null)}>×</button>
+            <button type="button" className="close" aria-label="Close details" onClick={() => setSelected(null)}>×</button>
             <p className="eyebrow">{selected.department}</p>
             <h2 id="grant-title">{selected.recipient_name}</h2>
             <p className="modal-value">{currency.format(selected.agreement_value)}</p>
