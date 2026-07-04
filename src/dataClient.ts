@@ -3,6 +3,7 @@ import {
   fundingByDepartment,
   fundingByRegion,
   loadGrants,
+  sortGrants,
   uniqueValues
 } from "./data";
 import type {
@@ -118,7 +119,7 @@ export class SampleDataClient implements DataClient {
     const grants = await this.grants();
     signal?.throwIfAborted();
 
-    const filtered = filterGrants(grants, query);
+    const filtered = sortGrants(filterGrants(grants, query), query.sort);
     const mapRecords = filterGrants(grants, { ...query, province: "" });
     const regionalFunding = fundingByRegion(mapRecords);
     const totalPages = Math.max(1, Math.ceil(filtered.length / query.pageSize));
@@ -160,13 +161,20 @@ export class HttpDataClient implements DataClient {
       window.location.origin
     );
     const url = new URL("grants", baseUrl);
-    url.search = new URLSearchParams({
+    const parameters = new URLSearchParams({
       query: query.query,
       province: query.province,
       department: query.department,
+      sort: query.sort,
       page: String(query.page),
       page_size: String(query.pageSize)
-    }).toString();
+    });
+    if (query.startDate) parameters.set("start_date", query.startDate);
+    if (query.endDate) parameters.set("end_date", query.endDate);
+    if (query.minimumValue) {
+      parameters.set("minimum_value", query.minimumValue);
+    }
+    url.search = parameters.toString();
 
     const timeoutSignal = AbortSignal.timeout(15_000);
     const requestSignal = signal

@@ -18,7 +18,17 @@ export interface GrantFilters {
   query: string;
   province: string;
   department: string;
+  startDate: string;
+  endDate: string;
+  minimumValue: string;
+  sort: GrantSort;
 }
+
+export type GrantSort =
+  | "date_desc"
+  | "date_asc"
+  | "value_desc"
+  | "value_asc";
 
 export interface FundingTotal {
   name: string;

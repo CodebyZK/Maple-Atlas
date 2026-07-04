@@ -4,6 +4,7 @@ import {
   filterGrants,
   fundingByDepartment,
   fundingByRegion,
+  sortGrants,
   uniqueValues
 } from "./data";
 import type { Grant } from "./types";
@@ -30,14 +31,48 @@ const grants = [
   grant({ record_id: "2", recipient_name: "Northern Lab", province: "YT", department: "Department B", agreement_value: 400 }),
   grant({ record_id: "3", department: "Department A", agreement_value: 50 })
 ];
+const emptyFilters = {
+  query: "",
+  province: "",
+  department: "",
+  startDate: "",
+  endDate: "",
+  minimumValue: "",
+  sort: "date_desc" as const
+};
 
 describe("filterGrants", () => {
   it("searches text fields without case sensitivity", () => {
-    expect(filterGrants(grants, { query: "northern", province: "", department: "" })).toHaveLength(1);
+    expect(filterGrants(grants, { ...emptyFilters, query: "northern" })).toHaveLength(1);
   });
 
   it("combines province and department filters", () => {
-    expect(filterGrants(grants, { query: "", province: "ON", department: "Department A" })).toHaveLength(2);
+    expect(filterGrants(grants, { ...emptyFilters, province: "ON", department: "Department A" })).toHaveLength(2);
+  });
+
+  it("filters by agreement start date and minimum value", () => {
+    expect(filterGrants([
+      grant({ record_id: "old", agreement_start_date: "2023-01-01", agreement_value: 500 }),
+      grant({ record_id: "match", agreement_start_date: "2025-06-01", agreement_value: 500 }),
+      grant({ record_id: "small", agreement_start_date: "2025-06-01", agreement_value: 50 }),
+      grant({ record_id: "undated", agreement_start_date: null, agreement_value: 500 })
+    ], {
+      ...emptyFilters,
+      startDate: "2025-01-01",
+      endDate: "2025-12-31",
+      minimumValue: "100"
+    }).map(({ record_id }) => record_id)).toEqual(["match"]);
+  });
+
+  it("sorts newest first by default and leaves undated records last", () => {
+    const sorted = sortGrants([
+      grant({ record_id: "undated", agreement_start_date: null }),
+      grant({ record_id: "older", agreement_start_date: "2024-01-01" }),
+      grant({ record_id: "newer", agreement_start_date: "2025-01-01" })
+    ], "date_desc");
+
+    expect(sorted.map(({ record_id }) => record_id))
+      .toEqual(["newer", "older", "undated"]);
   });
 });
 

@@ -1,4 +1,10 @@
-import type { FundingTotal, Grant, GrantFilters, RegionTotal } from "./types";
+import type {
+  FundingTotal,
+  Grant,
+  GrantFilters,
+  GrantSort,
+  RegionTotal
+} from "./types";
 
 export const CANADIAN_REGIONS = [
   { code: "YT", name: "Yukon" },
@@ -36,6 +42,9 @@ export async function loadGrants(): Promise<Grant[]> {
 
 export function filterGrants(grants: Grant[], filters: GrantFilters): Grant[] {
   const query = filters.query.trim().toLocaleLowerCase();
+  const minimumValue = filters.minimumValue === ""
+    ? null
+    : Number(filters.minimumValue);
 
   return grants.filter((grant) => {
     const matchesQuery =
@@ -47,8 +56,45 @@ export function filterGrants(grants: Grant[], filters: GrantFilters): Grant[] {
       !filters.province || grant.province === filters.province;
     const matchesDepartment =
       !filters.department || grant.department === filters.department;
+    const matchesStartDate =
+      !filters.startDate ||
+      (grant.agreement_start_date !== null
+        && grant.agreement_start_date >= filters.startDate);
+    const matchesEndDate =
+      !filters.endDate ||
+      (grant.agreement_start_date !== null
+        && grant.agreement_start_date <= filters.endDate);
+    const matchesMinimumValue =
+      minimumValue === null ||
+      !Number.isFinite(minimumValue) ||
+      grant.agreement_value >= minimumValue;
 
-    return matchesQuery && matchesProvince && matchesDepartment;
+    return matchesQuery
+      && matchesProvince
+      && matchesDepartment
+      && matchesStartDate
+      && matchesEndDate
+      && matchesMinimumValue;
+  });
+}
+
+export function sortGrants(grants: Grant[], sort: GrantSort): Grant[] {
+  return [...grants].sort((left, right) => {
+    let comparison = 0;
+
+    if (sort === "value_desc" || sort === "value_asc") {
+      comparison = left.agreement_value - right.agreement_value;
+      if (sort === "value_desc") comparison *= -1;
+    } else {
+      const leftDate = left.agreement_start_date;
+      const rightDate = right.agreement_start_date;
+      if (leftDate === null && rightDate !== null) return 1;
+      if (leftDate !== null && rightDate === null) return -1;
+      comparison = (leftDate ?? "").localeCompare(rightDate ?? "");
+      if (sort === "date_desc") comparison *= -1;
+    }
+
+    return comparison || left.record_id.localeCompare(right.record_id);
   });
 }
 

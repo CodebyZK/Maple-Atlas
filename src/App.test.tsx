@@ -148,7 +148,9 @@ describe("App", () => {
   });
 
   it("loads bounded result pages", async () => {
-    const secondPageRecipient = `Recipient ${DEFAULT_PAGE_SIZE + 1}`;
+    // Equal dates use record_id as the stable tie-breaker, so lexical ID 9 is
+    // the final record in this 26-item fixture.
+    const secondPageRecipient = "Recipient 9";
     const paginatedSample = Array.from(
       { length: DEFAULT_PAGE_SIZE + 1 },
       (_, index) => ({

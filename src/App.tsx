@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import CanadaMap from "./CanadaMap";
 import { createDataClient, DEFAULT_PAGE_SIZE } from "./dataClient";
-import type { Grant, GrantFilters, GrantQueryResult } from "./types";
+import type {
+  Grant,
+  GrantFilters,
+  GrantQueryResult,
+  GrantSort
+} from "./types";
 
 const currency = new Intl.NumberFormat("en-CA", {
   style: "currency",
@@ -25,7 +30,11 @@ export default function App() {
   const [filters, setFilters] = useState<GrantFilters>({
     query: "",
     province: "",
-    department: ""
+    department: "",
+    startDate: "",
+    endDate: "",
+    minimumValue: "",
+    sort: "date_desc"
   });
   const [page, setPage] = useState(1);
   const [queryResult, setQueryResult] = useState<GrantQueryResult | null>(null);
@@ -74,15 +83,35 @@ export default function App() {
       ? leadingDepartmentValue
       : 1;
 
-  function updateFilter(field: keyof GrantFilters, value: string) {
+  function updateFilter<K extends keyof GrantFilters>(
+    field: K,
+    value: GrantFilters[K]
+  ) {
     setFilters((current) => ({ ...current, [field]: value }));
     setPage(1);
   }
 
   function clearFilters() {
-    setFilters({ query: "", province: "", department: "" });
+    setFilters((current) => ({
+      query: "",
+      province: "",
+      department: "",
+      startDate: "",
+      endDate: "",
+      minimumValue: "",
+      sort: current.sort
+    }));
     setPage(1);
   }
+
+  const hasFilters = Boolean(
+    filters.query ||
+    filters.province ||
+    filters.department ||
+    filters.startDate ||
+    filters.endDate ||
+    filters.minimumValue
+  );
 
   return (
     <>
@@ -139,7 +168,46 @@ export default function App() {
                   {queryResult.departmentOptions.map((department) => <option key={department}>{department}</option>)}
                 </select>
               </label>
-              {(filters.query || filters.province || filters.department) && (
+              <label>
+                Starting on or after
+                <input
+                  type="date"
+                  value={filters.startDate}
+                  max={filters.endDate || undefined}
+                  onChange={(event) => updateFilter("startDate", event.target.value)}
+                />
+              </label>
+              <label>
+                Starting on or before
+                <input
+                  type="date"
+                  value={filters.endDate}
+                  min={filters.startDate || undefined}
+                  onChange={(event) => updateFilter("endDate", event.target.value)}
+                />
+              </label>
+              <label>
+                Minimum funding
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  inputMode="decimal"
+                  value={filters.minimumValue}
+                  onChange={(event) => updateFilter("minimumValue", event.target.value)}
+                  placeholder="Any amount"
+                />
+              </label>
+              <label>
+                Sort records
+                <select value={filters.sort} onChange={(event) => updateFilter("sort", event.target.value as GrantSort)}>
+                  <option value="date_desc">Newest first</option>
+                  <option value="date_asc">Oldest first</option>
+                  <option value="value_desc">Highest funding</option>
+                  <option value="value_asc">Lowest funding</option>
+                </select>
+              </label>
+              {hasFilters && (
                 <button type="button" className="clear" onClick={clearFilters}>
                   Clear filters
                 </button>
@@ -197,6 +265,7 @@ export default function App() {
                       <strong>{grant.recipient_name}</strong>
                       <span>{grant.agreement_title || grant.program_name || "Untitled agreement"}</span>
                       <small>{[grant.city, grant.province, grant.department].filter(Boolean).join(" · ")}</small>
+                      <small className="record-date">Starts {formatDate(grant.agreement_start_date)}</small>
                     </button>
                   ))}
                   {!results.length && <p>No funding records match these filters.</p>}

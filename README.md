@@ -8,7 +8,8 @@ Current milestone: `v0.1.0`
 ## Features
 
 - Search by recipient, project, program, department, city, or province
-- Filter records by province and department
+- Filter records by province, department, agreement start date, and minimum value
+- Sort all matching records by date or funding value (newest first by default)
 - Explore funding totals through an interactive Canadian region map
 - Compare funding totals across departments
 - Review individual funding agreements and their source data
@@ -53,6 +54,10 @@ Atlas sends `GET {VITE_DATA_API_URL}/grants` with these query parameters:
 - `query`
 - `province`
 - `department`
+- `start_date`
+- `end_date`
+- `minimum_value`
+- `sort` (`date_desc`, `date_asc`, `value_desc`, or `value_asc`)
 - `page`
 - `page_size`
 

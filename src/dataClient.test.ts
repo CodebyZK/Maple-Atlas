@@ -6,6 +6,10 @@ const query = {
   query: "",
   province: "",
   department: "",
+  startDate: "",
+  endDate: "",
+  minimumValue: "",
+  sort: "date_desc" as const,
   page: 1,
   pageSize: 1
 };
@@ -124,6 +128,10 @@ describe("HttpDataClient", () => {
         query: "climate research",
         province: "YT",
         department: "Department B",
+        startDate: "2025-01-01",
+        endDate: "2025-12-31",
+        minimumValue: "100",
+        sort: "value_desc",
         page: 3,
         pageSize: 25
       },
@@ -132,7 +140,7 @@ describe("HttpDataClient", () => {
 
     const [url, options] = fetchMock.mock.calls[0];
     expect(String(url)).toBe(
-      "https://data.example/v1/grants?query=climate+research&province=YT&department=Department+B&page=3&page_size=25"
+      "https://data.example/v1/grants?query=climate+research&province=YT&department=Department+B&sort=value_desc&page=3&page_size=25&start_date=2025-01-01&end_date=2025-12-31&minimum_value=100"
     );
     expect(options.signal).not.toBe(controller.signal);
     controller.abort();
