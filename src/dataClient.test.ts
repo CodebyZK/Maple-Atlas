@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { HttpDataClient, SampleDataClient } from "./dataClient";
 import type { Grant, GrantQueryResult } from "./types";
 
@@ -43,6 +43,31 @@ const grants: Grant[] = [
   }
 ];
 
+const apiResponse: GrantQueryResult = {
+  records: [],
+  page: 1,
+  pageSize: 25,
+  totalRecords: 0,
+  totalPages: 1,
+  totalFunding: 0,
+  recipientCount: 0,
+  departments: [],
+  regions: [],
+  unknownRegion: { name: "Unknown location", value: 0, count: 0 },
+  provinceOptions: [],
+  departmentOptions: [],
+  dataset: {
+    version: "2026-07-04",
+    retrievedAt: "2026-07-04T00:00:00Z",
+    recordCount: 1_264_036,
+    isSample: false
+  }
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("SampleDataClient", () => {
   it("returns bounded pages with global aggregates and lineage", async () => {
     const client = new SampleDataClient(async () => grants);
@@ -70,14 +95,26 @@ describe("SampleDataClient", () => {
       new SampleDataClient(async () => grants).queryGrants(query, controller.signal)
     ).rejects.toMatchObject({ name: "AbortError" });
   });
+
+  it("retries loading after an initial failure", async () => {
+    const load = vi.fn()
+      .mockRejectedValueOnce(new Error("Temporary failure"))
+      .mockResolvedValueOnce(grants);
+    const client = new SampleDataClient(load);
+
+    await expect(client.queryGrants(query)).rejects.toThrow("Temporary failure");
+    await expect(client.queryGrants(query)).resolves.toMatchObject({
+      totalRecords: 2
+    });
+    expect(load).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("HttpDataClient", () => {
   it("serializes filters and pagination for the data API", async () => {
-    const response = { records: [] } as unknown as GrantQueryResult;
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => response
+      json: async () => apiResponse
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -97,9 +134,20 @@ describe("HttpDataClient", () => {
     expect(String(url)).toBe(
       "https://data.example/v1/grants?query=climate+research&province=YT&department=Department+B&page=3&page_size=25"
     );
-    expect(options.signal).toBe(controller.signal);
-    expect(result).toBe(response);
+    expect(options.signal).not.toBe(controller.signal);
+    controller.abort();
+    expect(options.signal.aborted).toBe(true);
+    expect(result).toBe(apiResponse);
+  });
 
-    vi.unstubAllGlobals();
+  it("rejects a response that does not match the API contract", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ records: [] })
+    }));
+
+    await expect(
+      new HttpDataClient("https://data.example/v1").queryGrants(query)
+    ).rejects.toThrow("Grant data API returned an invalid response");
   });
 });

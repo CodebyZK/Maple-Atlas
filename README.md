@@ -14,10 +14,10 @@ Current milestone: `v0.1.0`
 - Review individual funding agreements and their source data
 - Run entirely as a static website with no backend or authentication
 
-Atlas currently uses Forge's deterministic 500-record development sample.
-Totals shown in the dashboard describe that sample, not all federal funding.
-When `VITE_DATA_API_URL` is configured, Atlas queries a paginated data service
-instead and displays the complete dataset lineage returned by that service.
+By default, Atlas uses Forge's deterministic 500-record development sample, so
+the dashboard totals describe only that sample. When `VITE_DATA_API_URL` is
+configured, Atlas switches to the paginated data service and displays totals
+and dataset lineage returned by that service.
 
 ## Setup
 

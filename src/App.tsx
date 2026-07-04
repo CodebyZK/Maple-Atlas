@@ -42,7 +42,9 @@ export default function App() {
     dataClient.queryGrants(
       { ...filters, page, pageSize: DEFAULT_PAGE_SIZE },
       controller.signal
-    ).then(setQueryResult).catch((reason: unknown) => {
+    ).then((result) => {
+      if (!controller.signal.aborted) setQueryResult(result);
+    }).catch((reason: unknown) => {
       if (controller.signal.aborted) return;
       const message =
         reason instanceof Error
@@ -138,7 +140,7 @@ export default function App() {
                 </select>
               </label>
               {(filters.query || filters.province || filters.department) && (
-                <button className="clear" onClick={clearFilters}>
+                <button type="button" className="clear" onClick={clearFilters}>
                   Clear filters
                 </button>
               )}
@@ -153,6 +155,7 @@ export default function App() {
             <CanadaMap
               regions={queryResult.regions}
               unknown={queryResult.unknownRegion}
+              isSample={queryResult.dataset.isSample}
               selectedRegion={filters.province}
               onSelect={(province) => updateFilter("province", province)}
             />
@@ -189,7 +192,7 @@ export default function App() {
                 </div>
                 <div className="record-list">
                   {results.map((grant) => (
-                    <button className="record" key={grant.record_id} onClick={() => setSelected(grant)}>
+                    <button type="button" className="record" key={grant.record_id} onClick={() => setSelected(grant)}>
                       <span className="record-value">{currency.format(grant.agreement_value)}</span>
                       <strong>{grant.recipient_name}</strong>
                       <span>{grant.agreement_title || grant.program_name || "Untitled agreement"}</span>
@@ -201,6 +204,7 @@ export default function App() {
                 {queryResult.totalPages > 1 && (
                   <nav className="pagination" aria-label="Funding record pages">
                     <button
+                      type="button"
                       disabled={queryResult.page === 1 || loading}
                       onClick={() => setPage((current) => Math.max(1, current - 1))}
                     >
@@ -211,6 +215,7 @@ export default function App() {
                       {queryResult.totalPages.toLocaleString("en-CA")}
                     </span>
                     <button
+                      type="button"
                       disabled={queryResult.page === queryResult.totalPages || loading}
                       onClick={() => setPage((current) => current + 1)}
                     >
@@ -227,9 +232,11 @@ export default function App() {
       <footer>
         <span>MapleScope · Open public-funding data</span>
         <span>
-          {queryResult?.dataset.isSample
-            ? "Development sample totals are not a complete measure of federal spending."
-            : "Totals reflect the published Forge dataset version shown above."}
+          {!queryResult
+            ? "Dataset information is loading."
+            : queryResult.dataset.isSample
+              ? "Development sample totals are not a complete measure of federal spending."
+              : "Totals reflect the published Forge dataset version shown above."}
         </span>
       </footer>
 
@@ -249,7 +256,7 @@ export default function App() {
             }}
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <button className="close" aria-label="Close details" onClick={() => setSelected(null)}>×</button>
+            <button type="button" className="close" aria-label="Close details" onClick={() => setSelected(null)}>×</button>
             <p className="eyebrow">{selected.department}</p>
             <h2 id="grant-title">{selected.recipient_name}</h2>
             <p className="modal-value">{currency.format(selected.agreement_value)}</p>

@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { DEFAULT_PAGE_SIZE } from "./dataClient";
 
 const sample = [
   {
@@ -147,11 +148,15 @@ describe("App", () => {
   });
 
   it("loads bounded result pages", async () => {
-    const paginatedSample = Array.from({ length: 26 }, (_, index) => ({
+    const secondPageRecipient = `Recipient ${DEFAULT_PAGE_SIZE + 1}`;
+    const paginatedSample = Array.from(
+      { length: DEFAULT_PAGE_SIZE + 1 },
+      (_, index) => ({
       ...sample[0],
       record_id: `grant-${index + 1}`,
       recipient_name: `Recipient ${index + 1}`
-    }));
+      })
+    );
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => paginatedSample
@@ -160,10 +165,10 @@ describe("App", () => {
     render(<App />);
     await screen.findByText("Recipient 1");
 
-    expect(screen.queryByText("Recipient 26")).not.toBeInTheDocument();
+    expect(screen.queryByText(secondPageRecipient)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
-    expect(await screen.findByText("Recipient 26")).toBeInTheDocument();
+    expect(await screen.findByText(secondPageRecipient)).toBeInTheDocument();
     expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
   });
 
