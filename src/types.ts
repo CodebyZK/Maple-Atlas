@@ -25,3 +25,7 @@ export interface FundingTotal {
   value: number;
   count: number;
 }
+
+export interface RegionTotal extends FundingTotal {
+  code: string;
+}

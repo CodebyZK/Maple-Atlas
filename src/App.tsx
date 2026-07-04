@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { filterGrants, fundingByDepartment, loadGrants, uniqueValues } from "./data";
+import CanadaMap from "./CanadaMap";
+import {
+  filterGrants,
+  fundingByDepartment,
+  fundingByRegion,
+  loadGrants,
+  uniqueValues
+} from "./data";
 import type { Grant, GrantFilters } from "./types";
 
 const currency = new Intl.NumberFormat("en-CA", {
@@ -49,6 +56,11 @@ export default function App() {
   }, [selected]);
 
   const results = useMemo(() => filterGrants(grants, filters), [grants, filters]);
+  const mapResults = useMemo(
+    () => filterGrants(grants, { ...filters, province: "" }),
+    [grants, filters]
+  );
+  const regionalFunding = useMemo(() => fundingByRegion(mapResults), [mapResults]);
   const departments = useMemo(() => fundingByDepartment(results), [results]);
   const totalFunding = useMemo(
     () => results.reduce((sum, grant) => sum + grant.agreement_value, 0),
@@ -134,6 +146,13 @@ export default function App() {
               <article><span>Agreements</span><strong>{results.length.toLocaleString("en-CA")}</strong></article>
               <article><span>Recipients</span><strong>{recipientCount.toLocaleString("en-CA")}</strong></article>
             </div>
+
+            <CanadaMap
+              regions={regionalFunding.regions}
+              unknown={regionalFunding.unknown}
+              selectedRegion={filters.province}
+              onSelect={(province) => updateFilter("province", province)}
+            />
 
             <div className="content-grid">
               <section className="panel chart-panel">

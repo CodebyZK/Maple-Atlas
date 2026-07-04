@@ -1,4 +1,20 @@
-import type { FundingTotal, Grant, GrantFilters } from "./types";
+import type { FundingTotal, Grant, GrantFilters, RegionTotal } from "./types";
+
+export const CANADIAN_REGIONS = [
+  { code: "YT", name: "Yukon" },
+  { code: "NT", name: "Northwest Territories" },
+  { code: "NU", name: "Nunavut" },
+  { code: "BC", name: "British Columbia" },
+  { code: "AB", name: "Alberta" },
+  { code: "SK", name: "Saskatchewan" },
+  { code: "MB", name: "Manitoba" },
+  { code: "ON", name: "Ontario" },
+  { code: "QC", name: "Quebec" },
+  { code: "NB", name: "New Brunswick" },
+  { code: "PE", name: "Prince Edward Island" },
+  { code: "NS", name: "Nova Scotia" },
+  { code: "NL", name: "Newfoundland and Labrador" }
+] as const;
 
 const searchableFields: (keyof Grant)[] = [
   "recipient_name",
@@ -53,6 +69,51 @@ export function fundingByDepartment(grants: Grant[], limit = 6): FundingTotal[] 
   return [...totals.values()]
     .sort((left, right) => right.value - left.value)
     .slice(0, limit);
+}
+
+export function fundingByRegion(grants: Grant[]): {
+  regions: RegionTotal[];
+  unknown: FundingTotal;
+  missing: FundingTotal;
+  unrecognized: FundingTotal;
+} {
+  const totals = new Map<string, RegionTotal>(
+    CANADIAN_REGIONS.map((region) => [
+      region.code,
+      { ...region, value: 0, count: 0 }
+    ])
+  );
+  const unknown: FundingTotal = { name: "Unknown location", value: 0, count: 0 };
+  const missing: FundingTotal = { name: "Missing location", value: 0, count: 0 };
+  const unrecognized: FundingTotal = {
+    name: "Unrecognized location",
+    value: 0,
+    count: 0
+  };
+
+  for (const grant of grants) {
+    if (!grant.province) {
+      missing.value += grant.agreement_value;
+      missing.count += 1;
+      unknown.value += grant.agreement_value;
+      unknown.count += 1;
+      continue;
+    }
+
+    const region = totals.get(grant.province);
+    if (!region) {
+      unrecognized.value += grant.agreement_value;
+      unrecognized.count += 1;
+      unknown.value += grant.agreement_value;
+      unknown.count += 1;
+      continue;
+    }
+
+    region.value += grant.agreement_value;
+    region.count += 1;
+  }
+
+  return { regions: [...totals.values()], unknown, missing, unrecognized };
 }
 
 export function uniqueValues(
