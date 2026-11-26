@@ -6,6 +6,7 @@ import { AboutPage, HowItWorksPage, MethodsPage, NotFoundPage } from "./pages/Co
 import RecipientPage from "./pages/RecipientPage";
 import SearchPage from "./pages/SearchPage";
 import { useLocation } from "./router";
+import { setCanonical, setNoIndex } from "./seo";
 
 const TITLES: Record<string, string> = {
   "/": "Search Canadian federal grants",
@@ -23,6 +24,9 @@ export default function App() {
   useEffect(() => {
     const title = recipientMatch ? "Recipient profile" : TITLES[pathname] ?? "Page not found";
     document.title = `${title} · Maple Atlas`;
+    // Unknown addresses get no canonical; profiles decide noindex themselves.
+    if (recipientMatch || TITLES[pathname]) setCanonical(pathname);
+    if (!recipientMatch) setNoIndex(!TITLES[pathname]);
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   let page;
