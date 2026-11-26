@@ -1,6 +1,7 @@
 import {
   filterGrants,
   fundingByDepartment,
+  fundingByLocation,
   fundingByRegion,
   loadGrants,
   sortGrants,
@@ -32,6 +33,13 @@ function isFundingTotal(value: unknown): boolean {
     && typeof value.name === "string"
     && typeof value.value === "number"
     && typeof value.count === "number";
+}
+
+function isLocationTotal(value: unknown): boolean {
+  return isFundingTotal(value)
+    && isObject(value)
+    && (typeof value.city === "string" || value.city === null)
+    && (typeof value.province === "string" || value.province === null);
 }
 
 function isGrant(value: unknown): boolean {
@@ -70,6 +78,8 @@ function isGrantQueryResult(value: unknown): value is GrantQueryResult {
         && isObject(region)
         && typeof region.code === "string"
     )
+    && Array.isArray(value.locations)
+    && value.locations.every(isLocationTotal)
     && isFundingTotal(value.unknownRegion)
     && Array.isArray(value.provinceOptions)
     && value.provinceOptions.every((option) => typeof option === "string")
@@ -91,8 +101,20 @@ function datasetInfo(grants: Grant[]): DatasetInfo {
     version: "development-sample",
     retrievedAt,
     recordCount: grants.length,
-    isSample: true
+    isSample: true,
+    latestAmendmentsOnly: grants.some(
+      (grant) => grant.is_latest_amendment !== undefined
+    )
   };
+}
+
+/**
+ * Amendment rows restate an agreement's full value, so counting every row
+ * would double-count amended agreements. Keep only the latest amendment.
+ * Records from samples older than Forge schema 2.0.0 carry no flag and are kept.
+ */
+export function latestAmendments(grants: Grant[]): Grant[] {
+  return grants.filter((grant) => grant.is_latest_amendment !== false);
 }
 
 export class SampleDataClient implements DataClient {
@@ -104,7 +126,7 @@ export class SampleDataClient implements DataClient {
 
   private grants(): Promise<Grant[]> {
     if (!this.grantsPromise) {
-      this.grantsPromise = this.load().catch((error: unknown) => {
+      this.grantsPromise = this.load().then(latestAmendments, (error: unknown) => {
         this.grantsPromise = undefined;
         throw error;
       });
@@ -119,7 +141,8 @@ export class SampleDataClient implements DataClient {
     const grants = await this.grants();
     signal?.throwIfAborted();
 
-    const filtered = sortGrants(filterGrants(grants, query), query.sort);
+    const unsortedFiltered = filterGrants(grants, query);
+    const filtered = sortGrants(unsortedFiltered, query.sort);
     const mapRecords = filterGrants(grants, { ...query, province: "" });
     const regionalFunding = fundingByRegion(mapRecords);
     const totalPages = Math.max(1, Math.ceil(filtered.length / query.pageSize));
@@ -141,6 +164,7 @@ export class SampleDataClient implements DataClient {
       ).size,
       departments: fundingByDepartment(filtered),
       regions: regionalFunding.regions,
+      locations: fundingByLocation(unsortedFiltered),
       unknownRegion: regionalFunding.unknown,
       provinceOptions: uniqueValues(grants, "province"),
       departmentOptions: uniqueValues(grants, "department"),
@@ -163,8 +187,11 @@ export class HttpDataClient implements DataClient {
     const url = new URL("grants", baseUrl);
     const parameters = new URLSearchParams({
       query: query.query,
+      search_mode: query.searchMode,
+      search_field: query.searchField,
       province: query.province,
       department: query.department,
+      date_field: query.dateField,
       sort: query.sort,
       page: String(query.page),
       page_size: String(query.pageSize)
@@ -173,6 +200,9 @@ export class HttpDataClient implements DataClient {
     if (query.endDate) parameters.set("end_date", query.endDate);
     if (query.minimumValue) {
       parameters.set("minimum_value", query.minimumValue);
+    }
+    if (query.maximumValue) {
+      parameters.set("maximum_value", query.maximumValue);
     }
     url.search = parameters.toString();
 

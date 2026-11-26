@@ -29,11 +29,15 @@ export default function App() {
   const dataClient = useMemo(() => createDataClient(), []);
   const [filters, setFilters] = useState<GrantFilters>({
     query: "",
+    searchMode: "all",
+    searchField: "all",
     province: "",
     department: "",
+    dateField: "start",
     startDate: "",
     endDate: "",
     minimumValue: "",
+    maximumValue: "",
     sort: "date_desc"
   });
   const [page, setPage] = useState(1);
@@ -94,11 +98,15 @@ export default function App() {
   function clearFilters() {
     setFilters((current) => ({
       query: "",
+      searchMode: "all",
+      searchField: "all",
       province: "",
       department: "",
+      dateField: "start",
       startDate: "",
       endDate: "",
       minimumValue: "",
+      maximumValue: "",
       sort: current.sort
     }));
     setPage(1);
@@ -106,11 +114,15 @@ export default function App() {
 
   const hasFilters = Boolean(
     filters.query ||
+    filters.searchMode !== "all" ||
+    filters.searchField !== "all" ||
     filters.province ||
     filters.department ||
+    filters.dateField !== "start" ||
     filters.startDate ||
     filters.endDate ||
-    filters.minimumValue
+    filters.minimumValue ||
+    filters.maximumValue
   );
 
   return (
@@ -134,17 +146,45 @@ export default function App() {
             agreements processed by Maple Forge.
           </p>
           <label className="search">
-            <span aria-hidden="true">⌕</span>
+            <span aria-hidden="true">&#x2315;</span>
             <span className="sr-only">Search grants</span>
             <input
               value={filters.query}
               onChange={(event) => updateFilter("query", event.target.value)}
-              placeholder="Search recipients, projects, programs, or places"
+              placeholder="Search terms, exact phrases, recipients, programs, or places"
             />
           </label>
+          <div className="search-tools" aria-label="Keyword search controls">
+            <label>
+              Match
+              <select
+                value={filters.searchMode}
+                onChange={(event) => updateFilter("searchMode", event.target.value as GrantFilters["searchMode"])}
+              >
+                <option value="all">All words</option>
+                <option value="any">Any word</option>
+                <option value="phrase">Exact phrase</option>
+              </select>
+            </label>
+            <label>
+              Search in
+              <select
+                value={filters.searchField}
+                onChange={(event) => updateFilter("searchField", event.target.value as GrantFilters["searchField"])}
+              >
+                <option value="all">All text fields</option>
+                <option value="recipient">Recipient only</option>
+                <option value="project">Project title only</option>
+                <option value="program">Program only</option>
+                <option value="department">Department only</option>
+                <option value="description">Description only</option>
+                <option value="location">City or province only</option>
+              </select>
+            </label>
+          </div>
           <p className="sample-note">
             {queryResult
-              ? `${queryResult.dataset.isSample ? "Development fallback" : "Complete Forge dataset"} · ${queryResult.dataset.recordCount.toLocaleString("en-CA")} records · retrieved ${date.format(new Date(queryResult.dataset.retrievedAt))}`
+              ? `${queryResult.dataset.isSample ? "Development fallback" : "Complete Forge dataset"} - ${queryResult.dataset.recordCount.toLocaleString("en-CA")} records - retrieved ${date.format(new Date(queryResult.dataset.retrievedAt))}`
               : "Loading dataset information…"}
           </p>
         </section>
@@ -166,6 +206,14 @@ export default function App() {
                 <select value={filters.department} onChange={(event) => updateFilter("department", event.target.value)}>
                   <option value="">All departments</option>
                   {queryResult.departmentOptions.map((department) => <option key={department}>{department}</option>)}
+                </select>
+              </label>
+              <label>
+                Date basis
+                <select value={filters.dateField} onChange={(event) => updateFilter("dateField", event.target.value as GrantFilters["dateField"])}>
+                  <option value="start">Agreement starts</option>
+                  <option value="end">Agreement ends</option>
+                  <option value="active">Active during range</option>
                 </select>
               </label>
               <label>
@@ -199,6 +247,18 @@ export default function App() {
                 />
               </label>
               <label>
+                Maximum funding
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  inputMode="decimal"
+                  value={filters.maximumValue}
+                  onChange={(event) => updateFilter("maximumValue", event.target.value)}
+                  placeholder="No ceiling"
+                />
+              </label>
+              <label>
                 Sort records
                 <select value={filters.sort} onChange={(event) => updateFilter("sort", event.target.value as GrantSort)}>
                   <option value="date_desc">Newest first</option>
@@ -222,6 +282,7 @@ export default function App() {
 
             <CanadaMap
               regions={queryResult.regions}
+              locations={queryResult.locations}
               unknown={queryResult.unknownRegion}
               isSample={queryResult.dataset.isSample}
               selectedRegion={filters.province}
@@ -264,7 +325,7 @@ export default function App() {
                       <span className="record-value">{currency.format(grant.agreement_value)}</span>
                       <strong>{grant.recipient_name}</strong>
                       <span>{grant.agreement_title || grant.program_name || "Untitled agreement"}</span>
-                      <small>{[grant.city, grant.province, grant.department].filter(Boolean).join(" · ")}</small>
+                      <small>{[grant.city, grant.province, grant.department].filter(Boolean).join(" - ")}</small>
                       <small className="record-date">Starts {formatDate(grant.agreement_start_date)}</small>
                     </button>
                   ))}
@@ -299,7 +360,7 @@ export default function App() {
       </main>
 
       <footer>
-        <span>MapleScope · Open public-funding data</span>
+        <span>MapleScope - Open public-funding data</span>
         <span>
           {!queryResult
             ? "Dataset information is loading."
@@ -334,7 +395,20 @@ export default function App() {
             <dl>
               <div><dt>Program</dt><dd>{selected.program_name ?? "Not published"}</dd></div>
               <div><dt>Location</dt><dd>{[selected.city, selected.province].filter(Boolean).join(", ") || "Not published"}</dd></div>
-              <div><dt>Dates</dt><dd>{formatDate(selected.agreement_start_date)} – {formatDate(selected.agreement_end_date)}</dd></div>
+              <div><dt>Dates</dt><dd>{formatDate(selected.agreement_start_date)} - {formatDate(selected.agreement_end_date)}</dd></div>
+              {selected.reference_number && (
+                <div><dt>Reference</dt><dd>{selected.reference_number}</dd></div>
+              )}
+              {selected.amendment_count !== undefined && (
+                <div>
+                  <dt>Amendments</dt>
+                  <dd>
+                    {selected.amendment_count > 1
+                      ? `Amended ${selected.amendment_count - 1} ${selected.amendment_count === 2 ? "time" : "times"}; value shown is amendment ${selected.amendment_number}`
+                      : "Original agreement"}
+                  </dd>
+                </div>
+              )}
             </dl>
             <a className="primary-link" href={selected.source_url}>View source data ↗</a>
           </article>

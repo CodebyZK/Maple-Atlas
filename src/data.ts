@@ -1,8 +1,12 @@
 import type {
   FundingTotal,
   Grant,
+  GrantDateField,
   GrantFilters,
+  GrantSearchField,
+  GrantSearchMode,
   GrantSort,
+  LocationTotal,
   RegionTotal
 } from "./types";
 
@@ -22,15 +26,23 @@ export const CANADIAN_REGIONS = [
   { code: "NL", name: "Newfoundland and Labrador" }
 ] as const;
 
-const searchableFields: (keyof Grant)[] = [
-  "recipient_name",
-  "agreement_title",
-  "program_name",
-  "department",
-  "description",
-  "city",
-  "province"
-];
+const searchableFieldsByScope: Record<GrantSearchField, (keyof Grant)[]> = {
+  all: [
+    "recipient_name",
+    "agreement_title",
+    "program_name",
+    "department",
+    "description",
+    "city",
+    "province"
+  ],
+  recipient: ["recipient_name"],
+  project: ["agreement_title"],
+  program: ["program_name"],
+  department: ["department"],
+  description: ["description"],
+  location: ["city", "province"]
+};
 
 export async function loadGrants(): Promise<Grant[]> {
   const response = await fetch("./data/grants.sample.json");
@@ -40,41 +52,103 @@ export async function loadGrants(): Promise<Grant[]> {
   return response.json() as Promise<Grant[]>;
 }
 
+function tokenizeQuery(query: string): string[] {
+  return query.match(/"[^"]+"|\S+/g)
+    ?.map((term) => term.replace(/^"|"$/g, "").trim().toLocaleLowerCase())
+    .filter(Boolean) ?? [];
+}
+
+function searchableText(grant: Grant, searchField: GrantSearchField): string {
+  return searchableFieldsByScope[searchField]
+    .map((field) => String(grant[field] ?? ""))
+    .join(" ")
+    .toLocaleLowerCase();
+}
+
+function matchesQuery(
+  grant: Grant,
+  query: string,
+  searchMode: GrantSearchMode,
+  searchField: GrantSearchField
+): boolean {
+  if (!query) return true;
+
+  const text = searchableText(grant, searchField);
+  if (searchMode === "phrase") return text.includes(query);
+
+  const terms = tokenizeQuery(query);
+  if (!terms.length) return true;
+
+  return searchMode === "any"
+    ? terms.some((term) => text.includes(term))
+    : terms.every((term) => text.includes(term));
+}
+
+function matchesDateRange(
+  grant: Grant,
+  dateField: GrantDateField,
+  startDate: string,
+  endDate: string
+): boolean {
+  if (!startDate && !endDate) return true;
+
+  if (dateField === "active") {
+    const agreementStart = grant.agreement_start_date;
+    const agreementEnd = grant.agreement_end_date ?? agreementStart;
+    if (!agreementStart && !agreementEnd) return false;
+    if (startDate && agreementEnd !== null && agreementEnd < startDate) return false;
+    if (endDate && agreementStart !== null && agreementStart > endDate) return false;
+    return true;
+  }
+
+  const value = dateField === "end"
+    ? grant.agreement_end_date
+    : grant.agreement_start_date;
+
+  return value !== null
+    && (!startDate || value >= startDate)
+    && (!endDate || value <= endDate);
+}
+
 export function filterGrants(grants: Grant[], filters: GrantFilters): Grant[] {
   const query = filters.query.trim().toLocaleLowerCase();
   const minimumValue = filters.minimumValue === ""
     ? null
     : Number(filters.minimumValue);
+  const maximumValue = filters.maximumValue === ""
+    ? null
+    : Number(filters.maximumValue);
 
   return grants.filter((grant) => {
-    const matchesQuery =
-      !query ||
-      searchableFields.some((field) =>
-        String(grant[field] ?? "").toLocaleLowerCase().includes(query)
-      );
     const matchesProvince =
       !filters.province || grant.province === filters.province;
     const matchesDepartment =
       !filters.department || grant.department === filters.department;
-    const matchesStartDate =
-      !filters.startDate ||
-      (grant.agreement_start_date !== null
-        && grant.agreement_start_date >= filters.startDate);
-    const matchesEndDate =
-      !filters.endDate ||
-      (grant.agreement_start_date !== null
-        && grant.agreement_start_date <= filters.endDate);
     const matchesMinimumValue =
       minimumValue === null ||
       !Number.isFinite(minimumValue) ||
       grant.agreement_value >= minimumValue;
+    const matchesMaximumValue =
+      maximumValue === null ||
+      !Number.isFinite(maximumValue) ||
+      grant.agreement_value <= maximumValue;
 
-    return matchesQuery
+    return matchesQuery(
+      grant,
+      query,
+      filters.searchMode,
+      filters.searchField
+    )
       && matchesProvince
       && matchesDepartment
-      && matchesStartDate
-      && matchesEndDate
-      && matchesMinimumValue;
+      && matchesDateRange(
+        grant,
+        filters.dateField,
+        filters.startDate,
+        filters.endDate
+      )
+      && matchesMinimumValue
+      && matchesMaximumValue;
   });
 }
 
@@ -160,6 +234,39 @@ export function fundingByRegion(grants: Grant[]): {
   }
 
   return { regions: [...totals.values()], unknown, missing, unrecognized };
+}
+
+function normalizeLocationName(value: string | null): string | null {
+  if (!value) return null;
+  const [first] = value.split(/[|,]/);
+  const normalized = first.trim().replace(/\s+/g, " ");
+  return normalized || null;
+}
+
+export function fundingByLocation(grants: Grant[], limit = 80): LocationTotal[] {
+  const totals = new Map<string, LocationTotal>();
+
+  for (const grant of grants) {
+    const city = normalizeLocationName(grant.city);
+    const province = grant.province;
+    if (!city && !province) continue;
+
+    const key = `${province ?? ""}|${city ?? ""}`;
+    const current = totals.get(key) ?? {
+      name: [city, province].filter(Boolean).join(", "),
+      city,
+      province,
+      value: 0,
+      count: 0
+    };
+    current.value += grant.agreement_value;
+    current.count += 1;
+    totals.set(key, current);
+  }
+
+  return [...totals.values()]
+    .sort((left, right) => right.value - left.value)
+    .slice(0, limit);
 }
 
 export function uniqueValues(

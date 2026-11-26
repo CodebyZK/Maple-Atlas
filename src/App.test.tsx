@@ -67,7 +67,7 @@ describe("App", () => {
     await screen.findByText("Community Group");
 
     fireEvent.change(
-      screen.getByPlaceholderText("Search recipients, projects, programs, or places"),
+      screen.getByPlaceholderText("Search terms, exact phrases, recipients, programs, or places"),
       { target: { value: "research" } }
     );
     await waitFor(() =>

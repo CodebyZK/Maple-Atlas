@@ -7,10 +7,11 @@ Current milestone: `v0.1.0`
 
 ## Features
 
-- Search by recipient, project, program, department, city, or province
-- Filter records by province, department, agreement start date, and minimum value
+- Search by recipient, project, program, department, description, city, or province
+- Narrow keyword search by all words, any word, exact phrase, and target field
+- Filter records by province, department, start/end/active date range, and funding range
 - Sort all matching records by date or funding value (newest first by default)
-- Explore funding totals through an interactive Canadian region map
+- Explore funding totals through an interactive basemap with region heat circles and top location pins
 - Compare funding totals across departments
 - Review individual funding agreements and their source data
 - Run entirely as a static website with no backend or authentication
@@ -52,20 +53,30 @@ npm run dev
 Atlas sends `GET {VITE_DATA_API_URL}/grants` with these query parameters:
 
 - `query`
+- `search_mode` (`all`, `any`, or `phrase`)
+- `search_field` (`all`, `recipient`, `project`, `program`, `department`, `description`, or `location`)
 - `province`
 - `department`
+- `date_field` (`start`, `end`, or `active`)
 - `start_date`
 - `end_date`
 - `minimum_value`
+- `maximum_value`
 - `sort` (`date_desc`, `date_asc`, `value_desc`, or `value_asc`)
 - `page`
 - `page_size`
 
+Each agreement is counted once, at its latest amendment: amendment rows
+restate the agreement's full value. The API applies this for Forge schema
+2.0.0 datasets, and the sample fallback drops records whose
+`is_latest_amendment` is `false`.
+
 The response must match `GrantQueryResult` in `src/types.ts`. It contains the
 bounded `records` page, page metadata, global matching totals, department
-totals, province and territory totals, filter options, and Forge dataset
-lineage. Region totals must apply search and department filters while ignoring
-the selected province so users can move directly between map regions.
+totals, province and territory totals, top location totals, filter options, and
+Forge dataset lineage. Region totals must apply search, department, date, and
+funding filters while ignoring the selected province so users can move directly
+between map regions.
 
 Without `VITE_DATA_API_URL`, Atlas uses the committed 500-record sample through
 the same client interface. This fallback is intended for tests and local
