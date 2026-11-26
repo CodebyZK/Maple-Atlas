@@ -134,12 +134,35 @@ function locationCoordinate(location: LocationTotal): {
   return { coordinate: null, approximate: true };
 }
 
-function popupHtml(title: string, value: number, count: number, approximate = false): string {
-  return `
-    <strong>${title}</strong><br />
-    ${currency.format(value)}<br />
-    ${count.toLocaleString("en-CA")} agreements${approximate ? "<br /><small>Approximate location</small>" : ""}
-  `;
+/** Leaflet renders string content as HTML; data text must go in as DOM text. */
+export function textElement(text: string): HTMLElement {
+  const element = document.createElement("span");
+  element.textContent = text;
+  return element;
+}
+
+export function popupContent(
+  title: string,
+  value: number,
+  count: number,
+  approximate = false
+): HTMLElement {
+  const container = document.createElement("div");
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+  container.append(
+    heading,
+    document.createElement("br"),
+    currency.format(value),
+    document.createElement("br"),
+    `${count.toLocaleString("en-CA")} agreements`
+  );
+  if (approximate) {
+    const note = document.createElement("small");
+    note.textContent = "Approximate location";
+    container.append(document.createElement("br"), note);
+  }
+  return container;
 }
 
 export default function CanadaMap({
@@ -215,8 +238,8 @@ export default function CanadaMap({
         fillColor: levelColor(level),
         fillOpacity: 0.72
       })
-        .bindTooltip(`${region.name}: ${currency.format(region.value)}`)
-        .bindPopup(popupHtml(region.name, region.value, region.count))
+        .bindTooltip(textElement(`${region.name}: ${currency.format(region.value)}`))
+        .bindPopup(popupContent(region.name, region.value, region.count))
         .on("click", () => onSelect(region.code))
         .on("mouseover", () => setFocusedRegion(region.code))
         .on("mouseout", () => setFocusedRegion(""))
@@ -235,8 +258,8 @@ export default function CanadaMap({
         fillColor: approximate ? "#f1b64a" : "#c54332",
         fillOpacity: approximate ? 0.48 : 0.78
       })
-        .bindTooltip(location.name)
-        .bindPopup(popupHtml(location.name, location.value, location.count, approximate))
+        .bindTooltip(textElement(location.name))
+        .bindPopup(popupContent(location.name, location.value, location.count, approximate))
         .on("click", () => {
           if (location.province) onSelect(location.province);
         })
