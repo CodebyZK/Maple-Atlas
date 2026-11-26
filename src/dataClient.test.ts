@@ -157,6 +157,24 @@ describe("HttpDataClient", () => {
     expect(result).toBe(apiResponse);
   });
 
+  it("sends a zero minimum or maximum value", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => apiResponse
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new HttpDataClient("https://data.example/v1").queryGrants({
+      ...query,
+      minimumValue: "0",
+      maximumValue: "0"
+    });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("minimum_value")).toBe("0");
+    expect(url.searchParams.get("maximum_value")).toBe("0");
+  });
+
   it("rejects a response that does not match the API contract", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,

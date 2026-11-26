@@ -248,10 +248,10 @@ export class HttpDataClient implements DataClient {
     });
     if (query.startDate) parameters.set("start_date", query.startDate);
     if (query.endDate) parameters.set("end_date", query.endDate);
-    if (query.minimumValue) {
+    if (query.minimumValue !== "") {
       parameters.set("minimum_value", query.minimumValue);
     }
-    if (query.maximumValue) {
+    if (query.maximumValue !== "") {
       parameters.set("maximum_value", query.maximumValue);
     }
     url.search = parameters.toString();
