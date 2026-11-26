@@ -1,5 +1,5 @@
 import { firstPart } from "./format";
-import type { Grant, ProfileAgreement, RecipientProfile } from "./types";
+import type { Grant, ProfileAgreement, RecipientProfile, SimilarRecipient } from "./types";
 
 const RECIPIENT_TYPES: Record<string, string> = {
   A: "Indigenous recipient",
@@ -145,4 +145,42 @@ export function continuousYears(byYear: RecipientProfile["byYear"]) {
     const year = first + index;
     return found.get(year) ?? { year, value: 0, count: 0 };
   });
+}
+
+
+/**
+ * Organizations funded by the same programs as this recipient, for the sample
+ * fallback. Mirrors the Data API: more shared top programs first, then more
+ * funding in them; individuals get no similar list.
+ */
+export function similarFromGrants(allGrants: Grant[], recipientId: string, limit = 8): SimilarRecipient[] {
+  const grants = allGrants.filter((grant) => grant.is_latest_amendment !== false && !grant.recipient_is_aggregate);
+  const mine = grants.filter((grant) => grant.recipient_id === recipientId);
+  if (mine.length === 0 || mine.some((grant) => grant.recipient_is_person)) return [];
+  const programs = totalsBy(mine, (grant) => grant.program_name, 5).map((item) => item.name);
+  const shared = new Map<string, Map<string, number>>();
+  for (const grant of grants) {
+    if (!grant.recipient_id || grant.recipient_id === recipientId || grant.recipient_is_person) continue;
+    if (!grant.program_name || !programs.includes(grant.program_name)) continue;
+    const byProgram = shared.get(grant.recipient_id) ?? new Map<string, number>();
+    byProgram.set(grant.program_name, (byProgram.get(grant.program_name) ?? 0) + grant.agreement_value);
+    shared.set(grant.recipient_id, byProgram);
+  }
+  return [...shared.entries()]
+    .map(([id, byProgram]) => {
+      const theirs = grants.filter((grant) => grant.recipient_id === id);
+      const sharedValue = [...byProgram.values()].reduce((sum, value) => sum + value, 0);
+      return {
+        recipientId: id,
+        name: theirs[0].recipient_name,
+        province: theirs[0].province,
+        recipientTypeLabel: null,
+        sharedPrograms: [...byProgram.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name),
+        sharedValue,
+        totalFunding: theirs.reduce((sum, grant) => sum + grant.agreement_value, 0),
+        agreementCount: theirs.length
+      };
+    })
+    .sort((a, b) => b.sharedPrograms.length - a.sharedPrograms.length || b.sharedValue - a.sharedValue)
+    .slice(0, limit);
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BeaconError, type BeaconClient } from "./beaconClient";
 import CharityCard from "./CharityCard";
+import SimilarRecipients from "./SimilarRecipients";
 import ColumnChart from "./ColumnChart";
 import { firstPart, placeName } from "./format";
 import type { DataClient } from "./dataClient";
@@ -394,6 +395,16 @@ export default function RecipientProfile({
         {largest && (
           <div><dt>Largest agreement</dt><dd>{compactCurrency.format(largest.agreement_value)}</dd></div>
         )}
+        {profile.programRank && profile.programRank.recipients > 1 && (
+          <div title={profile.programRank.program}>
+            <dt>Rank in main program</dt>
+            <dd>
+              #{profile.programRank.rank.toLocaleString("en-CA")}
+              <small> of {profile.programRank.recipients.toLocaleString("en-CA")}</small>
+            </dd>
+            <small className="tile-note">{profile.programRank.program}</small>
+          </div>
+        )}
       </dl>
 
       {years.length > 0 && (
@@ -415,6 +426,22 @@ export default function RecipientProfile({
           Not shown: {currency.format(profile.undated.value)} in{" "}
           {plural(profile.undated.count, "agreement")} without a start date.
         </p>
+      )}
+
+      {profile.sizeBuckets && profile.agreementCount > 1 && (
+        <ColumnChart
+          title="Agreements by size"
+          labelHeading="Agreement value"
+          height={190}
+          format={(value) => plural(value, "agreement")}
+          formatAxis={(value) => value.toLocaleString("en-CA")}
+          items={profile.sizeBuckets.map((bucket) => ({
+            key: bucket.label,
+            label: bucket.label.replace(" and over", "+").replace(" to ", "–"),
+            value: bucket.count,
+            detail: `${compactCurrency.format(bucket.value)} in total`
+          }))}
+        />
       )}
 
       {profile.charity && <CharityCard charity={profile.charity} />}
@@ -447,6 +474,10 @@ export default function RecipientProfile({
             ))}
           </ul>
         </>
+      )}
+
+      {!profile.isPerson && !profile.isAggregate && (
+        <SimilarRecipients dataClient={dataClient} recipientId={profile.recipientId} />
       )}
 
       <h3>Largest agreements</h3>
