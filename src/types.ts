@@ -19,6 +19,12 @@ export interface Grant {
   amendment_count?: number;
   /** Amendments restate the full value; only the latest one counts in totals. */
   is_latest_amendment?: boolean;
+  /** Present from Forge schema 2.1.0. Groups every grant to one recipient. */
+  recipient_id?: string;
+  recipient_type?: string | null;
+  business_number?: string | null;
+  recipient_is_person?: boolean;
+  recipient_is_aggregate?: boolean;
 }
 
 export interface GrantFilters {
@@ -97,4 +103,92 @@ export interface GrantQueryResult {
   provinceOptions: string[];
   departmentOptions: string[];
   dataset: DatasetInfo;
+}
+
+export interface YearTotal {
+  year: number;
+  value: number;
+  count: number;
+}
+
+export interface ProfileAgreement {
+  record_id: string;
+  agreement_id?: string;
+  agreement_title: string;
+  agreement_value: number;
+  agreement_start_date: string | null;
+  agreement_end_date: string | null;
+  department: string;
+  program_name: string | null;
+  description: string | null;
+  amendment_number?: number;
+  amendment_count?: number;
+}
+
+export interface RecipientProfile {
+  recipientId: string;
+  name: string;
+  otherNames: string[];
+  isPerson: boolean;
+  /** Placeholder rows such as "Batch report" that group many recipients. */
+  isAggregate: boolean;
+  recipientType: string | null;
+  recipientTypeLabel: string | null;
+  businessNumber: string | null;
+  /** For people: the institution whose business number their grants use. */
+  affiliation: { name: string; businessNumber: string; agreementCount: number } | null;
+  locations: { city: string | null; province: string | null; count: number }[];
+  totalFunding: number;
+  agreementCount: number;
+  firstAgreementStart: string | null;
+  lastAgreementStart: string | null;
+  byYear: YearTotal[];
+  undated: { value: number; count: number };
+  departments: FundingTotal[];
+  programs: FundingTotal[];
+  largestAgreements: ProfileAgreement[];
+}
+
+export interface FinancialMetric {
+  label: string;
+  concept: string;
+  unit: string;
+  values: { periodEnd: string; value: number }[];
+}
+
+export interface BeaconInsight {
+  recipient_name: string;
+  is_person: boolean;
+  identity_confirmed: boolean;
+  identity_evidence: string;
+  summary: string;
+  funding_insights: { insight: string; basis: string }[];
+  person_category: { category: string; confidence: number; reasoning: string };
+  public_company: { is_public: boolean; ticker: string; exchange: string; confidence: number };
+  financial_highlights: { label: string; value: string; period: string; source_url: string }[];
+  structured_financials: {
+    source: string;
+    sourceUrl: string;
+    ticker: string;
+    companyName: string;
+    metrics: FinancialMetric[];
+  } | null;
+  /** publisher and note are present from Beacon prompt version 2. */
+  sources: { title: string; url: string; publisher?: string; note?: string }[];
+  /** URLs from sources that support the summary (prompt version 2). */
+  summary_source_urls?: string[];
+  caveats: string[];
+}
+
+export type BeaconStatus = "none" | "pending" | "ready" | "failed";
+
+export interface BeaconState {
+  recipientId: string;
+  status: BeaconStatus;
+  insight: BeaconInsight | null;
+  generatedAt: string | null;
+  model: string | null;
+  stale: boolean;
+  canGenerate: boolean;
+  label: string;
 }

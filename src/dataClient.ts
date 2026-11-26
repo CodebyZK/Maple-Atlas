@@ -7,21 +7,37 @@ import {
   sortGrants,
   uniqueValues
 } from "./data";
+import { profileFromGrants } from "./recipients";
 import type {
   DatasetInfo,
   Grant,
   GrantQuery,
-  GrantQueryResult
+  GrantQueryResult,
+  RecipientProfile
 } from "./types";
 
 export const DEFAULT_PAGE_SIZE = 25;
 
 export interface DataClient {
   queryGrants(query: GrantQuery, signal?: AbortSignal): Promise<GrantQueryResult>;
+  /** Everything one recipient received, or null when unknown or unsupported. */
+  getRecipient(recipientId: string, signal?: AbortSignal): Promise<RecipientProfile | null>;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isRecipientProfile(value: unknown): value is RecipientProfile {
+  if (!isObject(value)) return false;
+  return typeof value.recipientId === "string"
+    && typeof value.name === "string"
+    && typeof value.isPerson === "boolean"
+    && typeof value.totalFunding === "number"
+    && typeof value.agreementCount === "number"
+    && Array.isArray(value.byYear)
+    && Array.isArray(value.departments)
+    && Array.isArray(value.largestAgreements);
 }
 
 function isNullableString(value: unknown): boolean {
@@ -134,6 +150,15 @@ export class SampleDataClient implements DataClient {
     return this.grantsPromise;
   }
 
+  async getRecipient(
+    recipientId: string,
+    signal?: AbortSignal
+  ): Promise<RecipientProfile | null> {
+    const grants = await this.grants();
+    signal?.throwIfAborted();
+    return profileFromGrants(grants, recipientId);
+  }
+
   async queryGrants(
     query: GrantQuery,
     signal?: AbortSignal
@@ -175,6 +200,31 @@ export class SampleDataClient implements DataClient {
 
 export class HttpDataClient implements DataClient {
   constructor(private readonly baseUrl: string) {}
+
+  async getRecipient(
+    recipientId: string,
+    signal?: AbortSignal
+  ): Promise<RecipientProfile | null> {
+    const baseUrl = new URL(
+      `${this.baseUrl.replace(/\/+$/, "")}/`,
+      window.location.origin
+    );
+    const url = new URL(`recipients/${encodeURIComponent(recipientId)}`, baseUrl);
+    const timeoutSignal = AbortSignal.timeout(15_000);
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal
+    });
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      throw new Error(`Could not load recipient (${response.status})`);
+    }
+    const payload: unknown = await response.json();
+    if (!isRecipientProfile(payload)) {
+      throw new Error("Grant data API returned an invalid recipient profile");
+    }
+    return payload;
+  }
 
   async queryGrants(
     query: GrantQuery,
