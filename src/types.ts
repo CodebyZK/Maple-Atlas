@@ -149,6 +149,28 @@ export interface RecipientProfile {
   largestAgreements: ProfileAgreement[];
   /** The recipient's CRA charity return, when it is a registered charity. */
   charity?: CharityInfo | null;
+  /** Agreements and value by size range. */
+  sizeBuckets?: { label: string; count: number; value: number }[];
+  /** Position among everyone funded by the recipient's main program. */
+  programRank?: {
+    program: string;
+    rank: number;
+    recipients: number;
+    programTotal: number;
+    share: number;
+  } | null;
+}
+
+/** An organization funded by the same programs (computed from grant data). */
+export interface SimilarRecipient {
+  recipientId: string;
+  name: string;
+  province: string | null;
+  recipientTypeLabel: string | null;
+  sharedPrograms: string[];
+  sharedValue: number;
+  totalFunding: number;
+  agreementCount: number;
 }
 
 /** Amounts are null when the charity did not report them (never zero). */

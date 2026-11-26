@@ -389,3 +389,16 @@ dd { margin: 6px 0 0; font-size: 14px; line-height: 1.5; }
 .charity-card h4 { margin: 20px 0 8px; font-size: 15px; }
 .charity-card .stat-tiles { margin: 18px 0 6px; }
 .charity-card .stat-tiles small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+
+/* Similar recipients and extra profile figures */
+.stat-tiles dd small { color: var(--muted); font: 600 14px "DM Sans", sans-serif; }
+.stat-tiles .tile-note { display: block; margin-top: 4px; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.similar { margin-top: 30px; }
+.similar-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+.similar-card { display: grid; gap: 6px; align-content: start; padding: 14px; background: white; border: 1px solid var(--line); border-radius: 8px; }
+.similar-card:hover { border-color: #8db7a5; }
+.similar-name { color: #18251f; font-weight: 700; text-decoration: none; overflow-wrap: anywhere; }
+.similar-name:hover { color: var(--maple); text-decoration: underline; }
+.similar-meta { color: var(--muted); font-size: 13px; }
+.similar-programs { display: flex; flex-wrap: wrap; gap: 6px; }
+.program-chip { padding: 2px 8px; color: var(--forest); background: #e5eee9; border-radius: 999px; font-size: 12px; }

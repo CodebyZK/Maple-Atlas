@@ -7,13 +7,14 @@ import {
   sortGrants,
   uniqueValues
 } from "./data";
-import { profileFromGrants } from "./recipients";
+import { profileFromGrants, similarFromGrants } from "./recipients";
 import type {
   DatasetInfo,
   Grant,
   GrantQuery,
   GrantQueryResult,
-  RecipientProfile
+  RecipientProfile,
+  SimilarRecipient
 } from "./types";
 
 export const DEFAULT_PAGE_SIZE = 25;
@@ -22,6 +23,8 @@ export interface DataClient {
   queryGrants(query: GrantQuery, signal?: AbortSignal): Promise<GrantQueryResult>;
   /** Everything one recipient received, or null when unknown or unsupported. */
   getRecipient(recipientId: string, signal?: AbortSignal): Promise<RecipientProfile | null>;
+  /** Organizations funded by the same programs; empty for individuals. */
+  getSimilar(recipientId: string, signal?: AbortSignal): Promise<SimilarRecipient[]>;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -159,6 +162,12 @@ export class SampleDataClient implements DataClient {
     return profileFromGrants(grants, recipientId);
   }
 
+  async getSimilar(recipientId: string, signal?: AbortSignal): Promise<SimilarRecipient[]> {
+    const grants = await this.grants();
+    signal?.throwIfAborted();
+    return similarFromGrants(grants, recipientId);
+  }
+
   async queryGrants(
     query: GrantQuery,
     signal?: AbortSignal
@@ -224,6 +233,20 @@ export class HttpDataClient implements DataClient {
       throw new Error("Grant data API returned an invalid recipient profile");
     }
     return payload;
+  }
+
+  async getSimilar(recipientId: string, signal?: AbortSignal): Promise<SimilarRecipient[]> {
+    const baseUrl = new URL(`${this.baseUrl.replace(/\/+$/, "")}/`, window.location.origin);
+    const url = new URL(`recipients/${encodeURIComponent(recipientId)}/similar`, baseUrl);
+    const timeoutSignal = AbortSignal.timeout(15_000);
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal
+    });
+    if (response.status === 404) return [];
+    if (!response.ok) throw new Error(`Could not load similar recipients (${response.status})`);
+    const payload = (await response.json()) as { similar?: unknown };
+    return Array.isArray(payload.similar) ? (payload.similar as SimilarRecipient[]) : [];
   }
 
   async queryGrants(
