@@ -209,7 +209,7 @@ export default function SearchPage({ dataClient }: { dataClient: DataClient }) {
 
   function goToPage(next: number) {
     setPage(next);
-    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    resultsRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
   }
 
   function handleTabKey(event: KeyboardEvent<HTMLButtonElement>) {
