@@ -147,6 +147,36 @@ export interface RecipientProfile {
   departments: FundingTotal[];
   programs: FundingTotal[];
   largestAgreements: ProfileAgreement[];
+  /** The recipient's CRA charity return, when it is a registered charity. */
+  charity?: CharityInfo | null;
+}
+
+/** Amounts are null when the charity did not report them (never zero). */
+export interface CharityInfo {
+  registrationNumber: string;
+  legalName: string;
+  designation: string | null;
+  category: string | null;
+  city: string | null;
+  province: string | null;
+  fiscalPeriodEnd: string | null;
+  sectionUsed: string | null;
+  listYear: string;
+  amounts: {
+    revenue_federal: number | null;
+    revenue_provincial: number | null;
+    revenue_municipal: number | null;
+    revenue_government_total: number | null;
+    total_revenue: number | null;
+    charitable_programs: number | null;
+    management_and_administration: number | null;
+    fundraising: number | null;
+    total_expenditures: number | null;
+    total_assets: number | null;
+    total_liabilities: number | null;
+  };
+  source: string;
+  sourceUrl: string;
 }
 
 export interface FinancialMetric {
