@@ -1,3 +1,4 @@
+import { firstPart } from "./format";
 import type { Grant, ProfileAgreement, RecipientProfile } from "./types";
 
 const RECIPIENT_TYPES: Record<string, string> = {
@@ -107,7 +108,7 @@ export function profileFromGrants(
     affiliation: null,
     locations: totalsBy(
       grants,
-      (grant) => [grant.city, grant.province].filter(Boolean).join("|") || null,
+      (grant) => [firstPart(grant.city) ?? "", grant.province ?? ""].join("|").replace(/^\|$/, "") || null,
       5
     ).map((item) => {
       const [city, province] = item.name.split("|");

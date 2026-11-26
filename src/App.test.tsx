@@ -50,6 +50,7 @@ describe("App", () => {
   });
 
   beforeEach(() => {
+    window.history.replaceState(null, "", "/");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => sample
@@ -67,18 +68,20 @@ describe("App", () => {
     await screen.findByText("Community Group");
 
     fireEvent.change(
-      screen.getByPlaceholderText("Search terms, exact phrases, recipients, programs, or places"),
+      screen.getByPlaceholderText("Search recipients, programs, places or keywords"),
       { target: { value: "research" } }
     );
     await waitFor(() =>
       expect(screen.queryByText("Community Group")).not.toBeInTheDocument()
     );
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Map" }));
     expect(
       screen.getByRole("button", {
         name: /^Ontario: no data, 0 published agreements$/
       })
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Agreements" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     fireEvent.change(screen.getByLabelText("Province or territory"), {
@@ -97,18 +100,20 @@ describe("App", () => {
       expect(screen.queryByText("Community Group")).not.toBeInTheDocument()
     );
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Map" }));
     expect(
       screen.getByRole("button", {
         name: /^Ontario: no data, 0 published agreements$/
       })
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Agreements" }));
   });
 
   it("opens the detail dialog and dismisses it with Escape", async () => {
     render(<App />);
-    const recipient = await screen.findByText("Community Group");
+    await screen.findByText("Community Group");
 
-    fireEvent.click(recipient.closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: "Youth program" }));
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveFocus();
@@ -123,28 +128,36 @@ describe("App", () => {
   it("filters records when a map region is selected by mouse or keyboard", async () => {
     render(<App />);
     await screen.findByText("Community Group");
+    const showMap = () => fireEvent.click(screen.getByRole("tab", { name: "Map" }));
+    const showResults = () => fireEvent.click(screen.getByRole("tab", { name: "Agreements" }));
+    const yukon = () =>
+      screen.getByRole("button", { name: /^Yukon: \$75(?:\.0)?K, 1 published agreement$/ });
 
-    const yukon = screen.getByRole("button", {
-      name: /^Yukon: \$75(?:\.0)?K, 1 published agreement$/
-    });
-    fireEvent.click(yukon);
-
+    showMap();
+    fireEvent.click(yukon());
+    await waitFor(() =>
+      expect(screen.getByLabelText("Province or territory")).toHaveValue("YT")
+    );
+    showResults();
     await waitFor(() =>
       expect(screen.queryByText("Community Group")).not.toBeInTheDocument()
     );
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
-    expect(screen.getByLabelText("Province or territory")).toHaveValue("YT");
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(await screen.findByText("Community Group")).toBeInTheDocument();
     expect(screen.getByLabelText("Province or territory")).toHaveValue("");
 
-    fireEvent.keyDown(yukon, { key: "Enter" });
+    showMap();
+    fireEvent.keyDown(yukon(), { key: "Enter" });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Province or territory")).toHaveValue("YT")
+    );
+    showResults();
     await waitFor(() =>
       expect(screen.queryByText("Community Group")).not.toBeInTheDocument()
     );
-    expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
-    expect(screen.getByLabelText("Province or territory")).toHaveValue("YT");
+    expect(window.location.search).toBe("?province=YT");
   });
 
   it("loads bounded result pages", async () => {
