@@ -51,6 +51,18 @@ function ExternalLink({ href, children }: { href: string; children: React.ReactN
   );
 }
 
+type InsightSource = BeaconInsight["sources"][number];
+
+/** The source's publisher, or its domain for older cached insights. */
+function publisherOf(source: InsightSource): string {
+  if (source.publisher) return source.publisher;
+  try {
+    return new URL(source.url).hostname.replace(/^www\./, "");
+  } catch {
+    return "Source";
+  }
+}
+
 function moneyIn(unit: string) {
   const formatter = new Intl.NumberFormat("en-CA", {
     style: "currency",
@@ -64,6 +76,12 @@ function moneyIn(unit: string) {
 function InsightBody({ state, insight }: { state: BeaconState; insight: BeaconInsight }) {
   const category = insight.person_category;
   const financials = insight.structured_financials;
+  // Only sources with a safe http(s) URL are shown, numbered in order.
+  const linkedSources = insight.sources
+    .filter((source) => safeUrl(source.url))
+    .map((source, index) => ({ source, number: index + 1 }));
+  const summaryUrls = new Set(insight.summary_source_urls ?? []);
+  const summarySources = linkedSources.filter(({ source }) => summaryUrls.has(source.url));
   return (
     <div className="beacon-body">
       {insight.is_person && (
@@ -76,7 +94,19 @@ function InsightBody({ state, insight }: { state: BeaconState; insight: BeaconIn
       )}
 
       {insight.summary ? (
-        <p className="beacon-summary">{insight.summary}</p>
+        <>
+          <p className="beacon-summary">{insight.summary}</p>
+          {summarySources.length > 0 && (
+            <p className="beacon-citations">
+              Sources:{" "}
+              {summarySources.map(({ source, number }) => (
+                <ExternalLink key={source.url} href={source.url}>
+                  [{number}] {publisherOf(source)}
+                </ExternalLink>
+              ))}
+            </p>
+          )}
+        </>
       ) : insight.is_person ? (
         <p className="muted">
           No public source clearly matches this person, so Beacon shows only an estimate.
@@ -147,16 +177,25 @@ function InsightBody({ state, insight }: { state: BeaconState; insight: BeaconIn
         </>
       )}
 
-      {insight.sources.length > 0 && (
+      {linkedSources.length > 0 && (
         <>
-          <h4>Sources</h4>
-          <ul className="beacon-list">
-            {insight.sources.map((source) => (
-              <li key={source.url}>
-                <ExternalLink href={source.url}>{source.title}</ExternalLink>
+          <h4>Read the articles</h4>
+          <ol className="article-list">
+            {linkedSources.map(({ source, number }) => (
+              <li key={source.url} className="article-card">
+                <span className="article-publisher">
+                  [{number}] {publisherOf(source)}
+                </span>
+                <ExternalLink href={source.url}>
+                  <span className="article-title">{source.title}</span>
+                </ExternalLink>
+                {source.note && <p className="article-note">{source.note}</p>}
+                <ExternalLink href={source.url}>
+                  <span className="article-read">Read article ↗</span>
+                </ExternalLink>
               </li>
             ))}
-          </ul>
+          </ol>
         </>
       )}
 

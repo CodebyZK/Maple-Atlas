@@ -111,7 +111,11 @@ function insight(overrides: Partial<BeaconInsight> = {}): BeaconInsight {
     public_company: { is_public: true, ticker: "ACME", exchange: "TSX", confidence: 90 },
     financial_highlights: [],
     structured_financials: null,
-    sources: [{ title: "Company site", url: "https://acme.example/about" }],
+    summary_source_urls: ["https://acme.example/about"],
+    sources: [
+      { title: "Company site", url: "https://acme.example/about", publisher: "Acme", note: "Describes the plant." },
+      { title: "Plant opens", url: "https://www.cbc.ca/news/plant" }
+    ],
     caveats: [],
     ...overrides
   };
@@ -156,6 +160,12 @@ describe("BeaconCard", () => {
     expect(screen.getByText("Likely funded for its plant.")).toBeInTheDocument();
     expect(screen.getByText("ACME")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Company site" })).toHaveAttribute("rel", "noopener noreferrer nofollow");
+    expect(screen.getByText("Read the articles")).toBeInTheDocument();
+    expect(screen.getByText("Describes the plant.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "[1] Acme" })).toHaveAttribute("href", "https://acme.example/about");
+    expect(screen.queryByRole("link", { name: "[2] cbc.ca" })).toBeNull();
+    expect(screen.getByText("[2] cbc.ca")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Read article ↗" })).toHaveLength(2);
     expect(client.request).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });

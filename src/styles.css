@@ -274,3 +274,14 @@ dd { margin: 6px 0 0; font-size: 13px; line-height: 1.5; }
 .beacon-caveats li::before { content: "Note: "; font-weight: 700; }
 .beacon-meta { margin: 10px 0; color: var(--muted); font-size: 13px; }
 .small-multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+
+/* Beacon article sources */
+.beacon-citations { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: -4px 0 0; color: var(--muted); font-size: 13px; }
+.beacon-citations a { color: var(--forest); }
+.article-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.article-card { display: grid; gap: 4px; padding: 14px 16px; background: var(--paper); border: 1px solid var(--line); }
+.article-publisher { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.article-card a { color: var(--forest); }
+.article-title { font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.article-note { margin: 2px 0; color: #4d5b54; font-size: 14px; line-height: 1.5; }
+.article-read { font-size: 14px; }

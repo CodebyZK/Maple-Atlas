@@ -173,7 +173,10 @@ export interface BeaconInsight {
     companyName: string;
     metrics: FinancialMetric[];
   } | null;
-  sources: { title: string; url: string }[];
+  /** publisher and note are present from Beacon prompt version 2. */
+  sources: { title: string; url: string; publisher?: string; note?: string }[];
+  /** URLs from sources that support the summary (prompt version 2). */
+  summary_source_urls?: string[];
   caveats: string[];
 }
 
