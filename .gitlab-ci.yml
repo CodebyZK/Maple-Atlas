@@ -70,4 +70,4 @@ deploy_production:
     - >-
       ssh -o BatchMode=yes -o StrictHostKeyChecking=yes
       "$DEPLOY_USER@$DEPLOY_HOST"
-      "cd '$DEPLOY_PATH' && git fetch --prune origin && git reset --hard origin/$CI_DEFAULT_BRANCH && npm ci && VITE_DATA_API_URL=/api/v1 npm run build"
+      "cd '$DEPLOY_PATH' && git fetch --prune origin && git reset --hard origin/$CI_DEFAULT_BRANCH && npm ci && VITE_DATA_API_URL=/api/v1 VITE_BEACON_API_URL=/api/beacon/v1 npm run build"

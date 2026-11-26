@@ -7,12 +7,15 @@ Current milestone: `v0.1.0`
 
 ## Features
 
-- Search by recipient, project, program, department, city, or province
-- Filter records by province, department, agreement start date, and minimum value
+- Search by recipient, project, program, department, description, city, or province
+- Narrow keyword search by all words, any word, exact phrase, and target field
+- Filter records by province, department, start/end/active date range, and funding range
 - Sort all matching records by date or funding value (newest first by default)
-- Explore funding totals through an interactive Canadian region map
+- Explore funding totals through an interactive basemap with region heat circles and top location pins
 - Compare funding totals across departments
 - Review individual funding agreements and their source data
+- Open a recipient profile: totals, funding by year, departments, programs,
+  and largest agreements, with an optional Maple Beacon AI summary
 - Run entirely as a static website with no backend or authentication
 
 By default, Atlas uses Forge's deterministic 500-record development sample, so
@@ -52,24 +55,54 @@ npm run dev
 Atlas sends `GET {VITE_DATA_API_URL}/grants` with these query parameters:
 
 - `query`
+- `search_mode` (`all`, `any`, or `phrase`)
+- `search_field` (`all`, `recipient`, `project`, `program`, `department`, `description`, or `location`)
 - `province`
 - `department`
+- `date_field` (`start`, `end`, or `active`)
 - `start_date`
 - `end_date`
 - `minimum_value`
+- `maximum_value`
 - `sort` (`date_desc`, `date_asc`, `value_desc`, or `value_asc`)
 - `page`
 - `page_size`
 
+Each agreement is counted once, at its latest amendment: amendment rows
+restate the agreement's full value. The API applies this for Forge schema
+2.0.0 datasets, and the sample fallback drops records whose
+`is_latest_amendment` is `false`.
+
 The response must match `GrantQueryResult` in `src/types.ts`. It contains the
 bounded `records` page, page metadata, global matching totals, department
-totals, province and territory totals, filter options, and Forge dataset
-lineage. Region totals must apply search and department filters while ignoring
-the selected province so users can move directly between map regions.
+totals, province and territory totals, top location totals, filter options, and
+Forge dataset lineage. Region totals must apply search, department, date, and
+funding filters while ignoring the selected province so users can move directly
+between map regions.
 
 Without `VITE_DATA_API_URL`, Atlas uses the committed 500-record sample through
 the same client interface. This fallback is intended for tests and local
 development only.
+
+## Recipient profiles and Beacon
+
+With a Forge schema 2.1.0 dataset, a grant's details link to its recipient
+profile (`GET {VITE_DATA_API_URL}/recipients/{recipient_id}`). The sample
+fallback builds the same profile in the browser.
+
+Set `VITE_BEACON_API_URL` (production: `/api/beacon/v1`) to show the Maple
+Beacon card. Visitors can generate a summary when none is cached; Atlas then
+polls Beacon every three seconds until it is ready. Without the variable,
+profiles show no AI card.
+
+For local development, `npm run dev` proxies `/api/beacon` to Beacon on port
+8100 and `/api` to the Data API on port 8000, matching production Nginx:
+
+```powershell
+$env:VITE_DATA_API_URL = "/api/v1"
+$env:VITE_BEACON_API_URL = "/api/beacon/v1"
+npm run dev
+```
 
 ## Updating the data
 

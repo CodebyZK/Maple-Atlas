@@ -4,11 +4,15 @@ import type { Grant, GrantQueryResult } from "./types";
 
 const query = {
   query: "",
+  searchMode: "all" as const,
+  searchField: "all" as const,
   province: "",
   department: "",
+  dateField: "start" as const,
   startDate: "",
   endDate: "",
   minimumValue: "",
+  maximumValue: "",
   sort: "date_desc" as const,
   page: 1,
   pageSize: 1
@@ -57,6 +61,7 @@ const apiResponse: GrantQueryResult = {
   recipientCount: 0,
   departments: [],
   regions: [],
+  locations: [],
   unknownRegion: { name: "Unknown location", value: 0, count: 0 },
   provinceOptions: [],
   departmentOptions: [],
@@ -126,11 +131,15 @@ describe("HttpDataClient", () => {
     const result = await new HttpDataClient("https://data.example/v1").queryGrants(
       {
         query: "climate research",
+        searchMode: "phrase",
+        searchField: "description",
         province: "YT",
         department: "Department B",
+        dateField: "active",
         startDate: "2025-01-01",
         endDate: "2025-12-31",
         minimumValue: "100",
+        maximumValue: "1000",
         sort: "value_desc",
         page: 3,
         pageSize: 25
@@ -140,12 +149,30 @@ describe("HttpDataClient", () => {
 
     const [url, options] = fetchMock.mock.calls[0];
     expect(String(url)).toBe(
-      "https://data.example/v1/grants?query=climate+research&province=YT&department=Department+B&sort=value_desc&page=3&page_size=25&start_date=2025-01-01&end_date=2025-12-31&minimum_value=100"
+      "https://data.example/v1/grants?query=climate+research&search_mode=phrase&search_field=description&province=YT&department=Department+B&date_field=active&sort=value_desc&page=3&page_size=25&start_date=2025-01-01&end_date=2025-12-31&minimum_value=100&maximum_value=1000"
     );
     expect(options.signal).not.toBe(controller.signal);
     controller.abort();
     expect(options.signal.aborted).toBe(true);
     expect(result).toBe(apiResponse);
+  });
+
+  it("sends a zero minimum or maximum value", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => apiResponse
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new HttpDataClient("https://data.example/v1").queryGrants({
+      ...query,
+      minimumValue: "0",
+      maximumValue: "0"
+    });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get("minimum_value")).toBe("0");
+    expect(url.searchParams.get("maximum_value")).toBe("0");
   });
 
   it("rejects a response that does not match the API contract", async () => {
@@ -157,5 +184,25 @@ describe("HttpDataClient", () => {
     await expect(
       new HttpDataClient("https://data.example/v1").queryGrants(query)
     ).rejects.toThrow("Grant data API returned an invalid response");
+  });
+});
+
+describe("SampleDataClient amendments", () => {
+  it("counts each agreement once at its latest amendment", async () => {
+    const amended: Grant[] = [
+      { ...grants[0], record_id: "a-0", agreement_id: "a", amendment_number: 0, amendment_count: 2, is_latest_amendment: false, agreement_value: 100 },
+      { ...grants[0], record_id: "a-1", agreement_id: "a", amendment_number: 1, amendment_count: 2, is_latest_amendment: true, agreement_value: 150 },
+      { ...grants[1], record_id: "b-0", agreement_id: "b", amendment_number: 0, amendment_count: 1, is_latest_amendment: true }
+    ];
+    const client = new SampleDataClient(async () => amended);
+
+    const result = await client.queryGrants({ ...query, pageSize: 10 });
+
+    expect(result.totalRecords).toBe(2);
+    expect(result.totalFunding).toBe(550);
+    expect(result.records.map((grant) => grant.record_id).sort()).toEqual(["a-1", "b-0"]);
+    expect(result.regions.find((region) => region.code === "ON")?.value).toBe(150);
+    expect(result.dataset.recordCount).toBe(2);
+    expect(result.dataset.latestAmendmentsOnly).toBe(true);
   });
 });
