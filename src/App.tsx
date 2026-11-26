@@ -291,7 +291,6 @@ export default function App() {
 
             <CanadaMap
               regions={queryResult.regions}
-              locations={queryResult.locations}
               unknown={queryResult.unknownRegion}
               isSample={queryResult.dataset.isSample}
               selectedRegion={filters.province}
