@@ -20,7 +20,8 @@ test:
 deploy-pages:
   stage: deploy
   script:
-    - npm run build
+    # Pages serves from a subfolder, so it keeps relative asset paths.
+    - npm run build -- --base=./
     - mv dist public-site
   artifacts:
     paths:

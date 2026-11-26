@@ -23,6 +23,22 @@ the dashboard totals describe only that sample. When `VITE_DATA_API_URL` is
 configured, Atlas switches to the paginated data service and displays totals
 and dataset lineage returned by that service.
 
+## Pages
+
+| Address | Page |
+|---|---|
+| `/` | Search, with filters kept in the URL (`?q=…&province=ON&page=2`) so searches can be shared |
+| `/recipients/{recipient_id}` | Recipient profile |
+| `/how-it-works` | Pipeline overview and search tips |
+| `/methods` | Data & methods: counting rules, recipient grouping, limits, AI policy |
+| `/about` | About the project and its author |
+
+Routing uses the browser history API with no router dependency
+(`src/router.tsx`). Production Nginx serves `index.html` for unknown paths
+(`try_files $uri $uri/ /index.html`), so every address works when opened
+directly. Builds use absolute asset paths (`base: "/"`); the GitLab Pages
+job builds with `--base=./` because Pages serves from a subfolder.
+
 ## Setup
 
 Node.js 20 or newer is required.

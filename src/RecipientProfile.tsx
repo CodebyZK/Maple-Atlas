@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { BeaconError, type BeaconClient } from "./beaconClient";
+import CharityCard from "./CharityCard";
 import ColumnChart from "./ColumnChart";
+import { firstPart, placeName } from "./format";
 import type { DataClient } from "./dataClient";
 import { continuousYears } from "./recipients";
 import type { BeaconInsight, BeaconState, RecipientProfile as Profile } from "./types";
@@ -49,6 +51,24 @@ function ExternalLink({ href, children }: { href: string; children: React.ReactN
       {children}
     </a>
   );
+}
+
+/**
+ * Name variants worth showing: the English part of bilingual names, without
+ * repeats that differ only in capitals or punctuation from the main name.
+ */
+export function distinctNames(name: string, others: string[]): string[] {
+  const key = (value: string) => value.toLocaleLowerCase("en-CA").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const seen = new Set([key(firstPart(name) ?? name)]);
+  const result: string[] = [];
+  for (const other of others) {
+    const display = firstPart(other) ?? other;
+    const normalized = key(display);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(display);
+  }
+  return result;
 }
 
 type InsightSource = BeaconInsight["sources"][number];
@@ -303,13 +323,15 @@ interface RecipientProfileProps {
   dataClient: DataClient;
   beaconClient: BeaconClient | null;
   onClose: () => void;
+  backLabel?: string;
 }
 
 export default function RecipientProfile({
   recipientId,
   dataClient,
   beaconClient,
-  onClose
+  onClose,
+  backLabel = "Back to grant"
 }: RecipientProfileProps) {
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -332,22 +354,23 @@ export default function RecipientProfile({
   if (profile === null) return <p className="muted">This recipient could not be found.</p>;
 
   const years = continuousYears(profile.byYear);
+  const otherNames = distinctNames(profile.name, profile.otherNames);
   const largest = profile.largestAgreements[0];
   const firstYear = profile.firstAgreementStart?.slice(0, 4);
   const lastYear = profile.lastAgreementStart?.slice(0, 4);
   const maxDepartment = Math.max(1, ...profile.departments.map((item) => item.value));
   const location = profile.locations
-    .map((item) => [item.city, item.province].filter(Boolean).join(", "))
+    .map((item) => placeName(item.city, item.province))
     .find(Boolean);
 
   return (
     <div className="recipient-profile">
-      <button type="button" className="text-button back-button" onClick={onClose}>← Back to grant</button>
+      <button type="button" className="text-button back-button" onClick={onClose}>← {backLabel}</button>
       <p className="eyebrow">{profile.recipientTypeLabel ?? (profile.isPerson ? "Individual" : "Recipient")}</p>
       <h2 id="recipient-title">{profile.name}</h2>
       {location && <p className="muted">{location}</p>}
-      {profile.otherNames.length > 0 && (
-        <p className="muted">Also published as {profile.otherNames.join("; ")}</p>
+      {otherNames.length > 0 && (
+        <p className="muted">Also published as {otherNames.join("; ")}</p>
       )}
       {profile.affiliation && (
         <p className="muted">
@@ -393,6 +416,8 @@ export default function RecipientProfile({
           {plural(profile.undated.count, "agreement")} without a start date.
         </p>
       )}
+
+      {profile.charity && <CharityCard charity={profile.charity} />}
 
       {profile.departments.length > 0 && (
         <>

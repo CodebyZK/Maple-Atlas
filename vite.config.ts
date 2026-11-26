@@ -3,7 +3,8 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  base: "./",
+  // Absolute asset paths so deep links such as /recipients/abc load assets.
+  base: "/",
   server: {
     // Local development mirrors the production Nginx routes:
     //   VITE_DATA_API_URL=/api/v1  VITE_BEACON_API_URL=/api/beacon/v1
