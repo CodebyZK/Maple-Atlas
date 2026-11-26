@@ -381,3 +381,11 @@ dd { margin: 6px 0 0; font-size: 14px; line-height: 1.5; }
   html { scroll-behavior: auto; }
   * { transition: none !important; }
 }
+
+/* Registered charity card */
+.charity-card { margin-top: 30px; padding: 22px; background: white; border: 1px solid var(--line); border-top: 3px solid #518d77; border-radius: 10px; }
+.charity-heading { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.charity-heading h3 { margin: 0; font-size: 18px; }
+.charity-card h4 { margin: 20px 0 8px; font-size: 15px; }
+.charity-card .stat-tiles { margin: 18px 0 6px; }
+.charity-card .stat-tiles small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BeaconError, type BeaconClient } from "./beaconClient";
+import CharityCard from "./CharityCard";
 import ColumnChart from "./ColumnChart";
 import { firstPart, placeName } from "./format";
 import type { DataClient } from "./dataClient";
@@ -415,6 +416,8 @@ export default function RecipientProfile({
           {plural(profile.undated.count, "agreement")} without a start date.
         </p>
       )}
+
+      {profile.charity && <CharityCard charity={profile.charity} />}
 
       {profile.departments.length > 0 && (
         <>
