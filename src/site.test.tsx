@@ -171,3 +171,47 @@ describe("recipient name variants", () => {
     ).toEqual(["Ottawa U Research Office"]);
   });
 });
+
+describe("search engine tags", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => sample }));
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    document.head.querySelector('meta[name="robots"]')?.remove();
+  });
+
+  it("sets a canonical address without search filters", () => {
+    window.history.replaceState(null, "", "/methods");
+    render(<App />);
+
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute("href", "https://atlas.zionkoudijs.com/methods");
+    expect(document.head.querySelector('meta[name="robots"]')).toBeNull();
+  });
+
+  it("marks individuals' profiles noindex but not organizations", async () => {
+    const person = { ...sample[0], recipient_id: "rec-person", recipient_name: "Doe, Jane", recipient_is_person: true };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => [...sample, person] }));
+
+    window.history.replaceState(null, "", "/recipients/rec-person");
+    render(<App />);
+    await screen.findByRole("heading", { name: "Doe, Jane" });
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute("content", "noindex");
+    cleanup();
+
+    window.history.replaceState(null, "", "/recipients/rec-northern");
+    render(<App />);
+    await screen.findByRole("heading", { name: "Northern Research Lab" });
+    expect(document.head.querySelector('meta[name="robots"]')).toBeNull();
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute("href", "https://atlas.zionkoudijs.com/recipients/rec-northern");
+  });
+
+  it("marks unknown pages noindex", () => {
+    window.history.replaceState(null, "", "/nope");
+    render(<App />);
+
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute("content", "noindex");
+  });
+});

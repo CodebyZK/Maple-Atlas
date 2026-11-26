@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BeaconError, type BeaconClient } from "./beaconClient";
 import CharityCard from "./CharityCard";
 import SimilarRecipients from "./SimilarRecipients";
+import { setNoIndex } from "./seo";
 import ColumnChart from "./ColumnChart";
 import { firstPart, placeName } from "./format";
 import type { DataClient } from "./dataClient";
@@ -336,6 +337,12 @@ export default function RecipientProfile({
 }: RecipientProfileProps) {
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+
+  // Individuals' profiles and placeholder entries stay out of search results.
+  useEffect(() => {
+    setNoIndex(Boolean(profile && (profile.isPerson || profile.isAggregate)));
+    return () => setNoIndex(false);
+  }, [profile]);
 
   useEffect(() => {
     const controller = new AbortController();
