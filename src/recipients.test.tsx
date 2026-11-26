@@ -237,3 +237,37 @@ describe("RecipientProfile", () => {
     expect(beaconClient.get).not.toHaveBeenCalled();
   });
 });
+
+describe("review fixes", () => {
+  it("ignores superseded amendments even when callers pass them", () => {
+    const profile = profileFromGrants(grants, "rec-acme");
+
+    expect(profile?.totalFunding).toBe(450);
+    expect(profile?.largestAgreements.map((item) => item.record_id)).not.toContain("a4");
+  });
+
+  it("keeps polling Beacon after a failed poll", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const ready = state({ status: "ready", canGenerate: false, insight: insight() });
+    const client: BeaconClient = {
+      get: vi.fn()
+        .mockResolvedValueOnce(state({ status: "pending", canGenerate: false }))
+        .mockRejectedValueOnce(new Error("network blip"))
+        .mockResolvedValue(ready),
+      request: vi.fn()
+    };
+
+    render(<BeaconCard client={client} recipientId="rec-acme" />);
+    expect(await screen.findByText(/Searching public sources/)).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_100);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_100);
+    });
+
+    expect(await screen.findByText("A manufacturer.")).toBeInTheDocument();
+    expect(client.get).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+});

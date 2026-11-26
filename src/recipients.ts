@@ -64,7 +64,10 @@ export function profileFromGrants(
   allGrants: Grant[],
   recipientId: string
 ): RecipientProfile | null {
-  const grants = allGrants.filter((grant) => grant.recipient_id === recipientId);
+  // Amendment rows restate an agreement's full value: count only the latest.
+  const grants = allGrants.filter(
+    (grant) => grant.recipient_id === recipientId && grant.is_latest_amendment !== false
+  );
   if (grants.length === 0) return null;
 
   const isPerson = grants.some((grant) => grant.recipient_is_person);

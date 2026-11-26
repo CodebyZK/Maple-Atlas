@@ -221,6 +221,7 @@ export function BeaconCard({ client, recipientId }: { client: BeaconClient; reci
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const polls = useRef(0);
+  const [pollRetry, setPollRetry] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -244,13 +245,17 @@ export function BeaconCard({ client, recipientId }: { client: BeaconClient; reci
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       polls.current += 1;
-      client.get(recipientId, controller.signal).then(setState).catch(() => undefined);
+      client.get(recipientId, controller.signal).then(setState).catch(() => {
+        // A failed poll (for example a brief network error) schedules another
+        // attempt; MAX_POLLS still bounds the total.
+        if (!controller.signal.aborted) setPollRetry((count) => count + 1);
+      });
     }, POLL_INTERVAL_MS);
     return () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [client, recipientId, state]);
+  }, [client, recipientId, state, pollRetry]);
 
   async function generate() {
     setBusy(true);
