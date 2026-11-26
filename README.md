@@ -14,6 +14,8 @@ Current milestone: `v0.1.0`
 - Explore funding totals through an interactive basemap with region heat circles and top location pins
 - Compare funding totals across departments
 - Review individual funding agreements and their source data
+- Open a recipient profile: totals, funding by year, departments, programs,
+  and largest agreements, with an optional Maple Beacon AI summary
 - Run entirely as a static website with no backend or authentication
 
 By default, Atlas uses Forge's deterministic 500-record development sample, so
@@ -81,6 +83,26 @@ between map regions.
 Without `VITE_DATA_API_URL`, Atlas uses the committed 500-record sample through
 the same client interface. This fallback is intended for tests and local
 development only.
+
+## Recipient profiles and Beacon
+
+With a Forge schema 2.1.0 dataset, a grant's details link to its recipient
+profile (`GET {VITE_DATA_API_URL}/recipients/{recipient_id}`). The sample
+fallback builds the same profile in the browser.
+
+Set `VITE_BEACON_API_URL` (production: `/api/beacon/v1`) to show the Maple
+Beacon card. Visitors can generate a summary when none is cached; Atlas then
+polls Beacon every three seconds until it is ready. Without the variable,
+profiles show no AI card.
+
+For local development, `npm run dev` proxies `/api/beacon` to Beacon on port
+8100 and `/api` to the Data API on port 8000, matching production Nginx:
+
+```powershell
+$env:VITE_DATA_API_URL = "/api/v1"
+$env:VITE_BEACON_API_URL = "/api/beacon/v1"
+npm run dev
+```
 
 ## Updating the data
 

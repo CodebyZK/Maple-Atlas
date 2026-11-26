@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createBeaconClient } from "./beaconClient";
 import CanadaMap from "./CanadaMap";
+import RecipientProfile from "./RecipientProfile";
 import { createDataClient, DEFAULT_PAGE_SIZE } from "./dataClient";
 import type {
   Grant,
@@ -44,8 +46,15 @@ export default function App() {
   const [queryResult, setQueryResult] = useState<GrantQueryResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Grant | null>(null);
+  const [recipientId, setRecipientId] = useState<string | null>(null);
+  const beaconClient = useMemo(() => createBeaconClient(), []);
   const [error, setError] = useState("");
   const dialogRef = useRef<HTMLElement>(null);
+
+  function closeDetails() {
+    setSelected(null);
+    setRecipientId(null);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -371,22 +380,31 @@ export default function App() {
       </footer>
 
       {selected && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelected(null)}>
+        <div className="modal-backdrop" role="presentation" onMouseDown={closeDetails}>
           <article
-            className="modal"
+            className={recipientId ? "modal modal-wide" : "modal"}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="grant-title"
+            aria-labelledby={recipientId ? "recipient-title" : "grant-title"}
             ref={dialogRef}
             tabIndex={-1}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
-                setSelected(null);
+                closeDetails();
               }
             }}
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <button type="button" className="close" aria-label="Close details" onClick={() => setSelected(null)}>×</button>
+            <button type="button" className="close" aria-label="Close details" onClick={closeDetails}>×</button>
+            {recipientId ? (
+              <RecipientProfile
+                recipientId={recipientId}
+                dataClient={dataClient}
+                beaconClient={beaconClient}
+                onClose={() => setRecipientId(null)}
+              />
+            ) : (
+            <>
             <p className="eyebrow">{selected.department}</p>
             <h2 id="grant-title">{selected.recipient_name}</h2>
             <p className="modal-value">{currency.format(selected.agreement_value)}</p>
@@ -410,7 +428,20 @@ export default function App() {
                 </div>
               )}
             </dl>
-            <a className="primary-link" href={selected.source_url}>View source data ↗</a>
+            <div className="modal-actions">
+              {selected.recipient_id && !selected.recipient_is_aggregate && (
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => setRecipientId(selected.recipient_id ?? null)}
+                >
+                  See all funding to this recipient
+                </button>
+              )}
+              <a className="primary-link" href={selected.source_url}>View source data ↗</a>
+            </div>
+            </>
+            )}
           </article>
         </div>
       )}
