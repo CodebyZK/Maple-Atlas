@@ -88,14 +88,13 @@ select { padding-right: 38px; }
 
 .map-panel { margin-top: 24px; overflow: hidden; }
 .map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 28px; align-items: stretch; }
-.map-canvas {
-  min-height: 430px;
-  z-index: 0;
-  overflow: hidden;
-  background: #dfe8e5;
-  border: 1px solid var(--line);
-}
-.leaflet-container { font: inherit; }
+.map-canvas { display: grid; place-items: center; padding: 8px 0; }
+.province-map { display: block; width: 100%; height: auto; max-height: 560px; overflow: visible; }
+/* Provinces are separated by a thin surface-coloured gap, not dark borders. */
+.province-shape { stroke: var(--paper); stroke-width: 1.2; stroke-linejoin: round; cursor: pointer; transition: filter .15s ease; outline: none; }
+.province-shape.focused { filter: brightness(1.08) saturate(1.1); }
+.province-shape:focus-visible { stroke: #f1b64a; stroke-width: 3; }
+.province-shape.selected { stroke: var(--maple); stroke-width: 3; }
 .map-summary { min-height: 260px; padding: 28px; display: grid; align-content: center; color: white; background: var(--forest); }
 .map-summary > span { color: #a9c4b9; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 700; }
 .map-summary h3 { margin: 8px 0 22px; font: 700 23px/1.2 "Libre Franklin", sans-serif; }

@@ -76,7 +76,7 @@ describe("App", () => {
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: /^Ontario: \$0(?:\.0)?, 0 agreements$/
+        name: /^Ontario: no data, 0 published agreements$/
       })
     ).toBeInTheDocument();
 
@@ -99,7 +99,7 @@ describe("App", () => {
     expect(screen.getByText("Northern Research Lab")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: /^Ontario: \$0(?:\.0)?, 0 agreements$/
+        name: /^Ontario: no data, 0 published agreements$/
       })
     ).toBeInTheDocument();
   });
@@ -125,7 +125,7 @@ describe("App", () => {
     await screen.findByText("Community Group");
 
     const yukon = screen.getByRole("button", {
-      name: /^Yukon: \$75(?:\.0)?K, 1 agreements$/
+      name: /^Yukon: \$75(?:\.0)?K, 1 published agreement$/
     });
     fireEvent.click(yukon);
 
